@@ -12,6 +12,8 @@ enum token_type
     BANG, BANG_EQUAL, EQUAL, EQUAL_EQUAL, GREATER, GREATER_EQUAL,
     LESS, LESS_EQUAL,
 
+    ARROW,
+
     INT, IDENTIFIER,
 
     AND, ELSE, INSTRUCTN, FOR, IF, OR, OUTPUT, RETURN, WHILE, 
@@ -24,13 +26,14 @@ struct token
     enum token_type tag;
     union
     {
-        char* lexeme;
+        char* string_v;
         int int_v;
     };
 };
 
 struct token_vector
 {
+    int pos;
     int n_items;
     int max_size;
     struct token* vec;
