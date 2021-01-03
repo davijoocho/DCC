@@ -9,20 +9,26 @@ struct src_string
     int begin;
     int forward;
     int length;
-    uint8_t* str;
+    char* str;
 };
+
+// token hash_table
 
 struct token_vector* scan (struct src_string* src);   // after done scanning free src in src_string
 
-bool is_at_end (struct src_string* src);
-uint8_t peek (struct src_string* src);
-uint8_t peek_next (struct src_string* src);
-uint8_t advance (struct src_string* src);
+void read_token (struct src_string* src, struct token_vector* tkn_vec);
 
-void read_token (struct src_string* src, struct token_vector* vec);
+bool is_at_end (struct src_string* src); //
 
-bool is_digit (uint8_t c);
-bool is_alpha (uint8_t c);
+char peek (struct src_string* src);
+char peek_next (struct src_string* src);
+
+bool match (struct src_string* src, char expected); //
+char advance (struct src_string* src); //
+
+
+bool is_digit (char c);
+bool is_alpha (char c);
 
 void to_integer (struct src_string* src, struct token_vector* vec);
 void to_identifier (struct src_string* src, struct token_vector* vec);

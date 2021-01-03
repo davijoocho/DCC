@@ -3,9 +3,9 @@
 #include <stdlib.h>
 #include "lexer.h"
 
-void read_file (char* fname, long* fsize, uint8_t* str)
+void read_file (char* fname, long* fsize, char* str)
 {
-    FILE* fp = fopen(fname "r");
+    FILE* fp = fopen(fname, "r");
     fseek(fp, 0, SEEK_END);
     *fsize = ftell(fp);
     rewind(fp);
@@ -13,12 +13,11 @@ void read_file (char* fname, long* fsize, uint8_t* str)
     str = malloc(fsize);
     fread(str, 1, fsize, fp);
     fclose(fp);
-
 };
 
 int main(int argc, char* argv[])
 {
-    uint8_t* str;
+    char* str;
     long fsize;
 
     read_file(argv[1], &fsize, str);
