@@ -35,11 +35,11 @@ struct token_vector
 {
     int pos;
     int n_items;
-    int max_size;
+    int max_length;
     struct token* vec;
 };
 
-struct token_vector* construct_vector (); // malloc and ret pointer
-void add_token (struct token_vector* tkn_vec, enum token_type type, void* value); // realloc when n_items = max_size
+struct token_vector* construct_vector (); // malloc and ret pointer - free token_vector and vec
+void add_token (struct token_vector* tkn_vec, enum token_type type, void* value); // realloc when n_items = max_length
 
 #endif

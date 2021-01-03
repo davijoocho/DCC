@@ -1,27 +1,25 @@
 #ifndef LEXER_H
 #define LEXER_H
 
+#include <stdint.h>
 #include "token.h"
-
 
 struct src_string
 {
-    int beg;
-    int cur;
+    int begin;
+    int forward;
+    int length;
     uint8_t* str;
-}
+};
 
-
-
-struct token_vector* scan (uint8_t* src_str);   // after done scanning free src in src_string
-struct src_string* construct_src (struct src_string* src, uint8_t* src_str);
+struct token_vector* scan (struct src_string* src);   // after done scanning free src in src_string
 
 bool is_at_end (struct src_string* src);
 uint8_t peek (struct src_string* src);
 uint8_t peek_next (struct src_string* src);
 uint8_t advance (struct src_string* src);
 
-void tokenize (struct src_string* src, struct token_vector* vec);
+void read_token (struct src_string* src, struct token_vector* vec);
 
 bool is_digit (uint8_t c);
 bool is_alpha (uint8_t c);
