@@ -12,8 +12,6 @@ struct token_vector* construct_vector()
     return tkn_vec;
 }
 
-
-
 // change when more types are added
 void add_token (struct token_vector* tkn_vec, enum token_type type, void* value)
 {
@@ -22,11 +20,9 @@ void add_token (struct token_vector* tkn_vec, enum token_type type, void* value)
         tkn_vec->max_length *= 2;
     }
 
-    struct token tkn;
-    tkn.tag = type;
-    (type == INT) ? tkn.int_v = *(int*)value : tkn.string_v = value;  
-
-    tkn_vec->vec[tkn_vec->length++] = tkn;
+    struct token* tkn = &tkn_vec->vec[tkn_vec->length++];
+    tkn->tag = type;
+    (type == INT) ? tkn->int_v = *(int*)value : tkn->string_v = value;  
 
     return;
 }
