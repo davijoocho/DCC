@@ -5,7 +5,7 @@
 
 struct token_vector* scan (struct src_string* src)
 {
-    struct kw_item* kw_hmap[10] = construct_map();
+    struct kw_item* kw_hmap = construct_map();
     struct token_vector* tkn_vec = construct_vector();
 
     while (!is_at_end(src)) {
@@ -24,6 +24,7 @@ void read_token (struct src_string* src, struct token_vector* tkn_vec, struct kw
     char c = advance(src);
 
     switch (c) {
+
         case '(': add_token(tkn_vec, LEFT_PAREN, NULL); break;
         case ')': add_token(tkn_vec, RIGHT_PAREN, NULL); break;
         case '{': add_token(tkn_vec, LEFT_BRACE, NULL); break;
@@ -40,7 +41,7 @@ void read_token (struct src_string* src, struct token_vector* tkn_vec, struct kw
                 add_token(tkn_vec, SLASH, NULL);
             }
             break;
-        //here
+
         case '!': add_token(tkn_vec, match(src, '=') ? BANG_EQUAL : BANG, NULL); break;
         case '>': add_token(tkn_vec, match(src, '=') ? GREATER_EQUAL : GREATER, NULL); break;
         case '<': add_token(tkn_vec, match(src, '=') ? LESS_EQUAL : LESS, NULL); break;
@@ -58,7 +59,7 @@ void read_token (struct src_string* src, struct token_vector* tkn_vec, struct kw
         case '\t':
         case '\n':
             break;
-        // here
+
         default:
             if (is_digit(c)) {
                 read_number(src, tkn_vec);

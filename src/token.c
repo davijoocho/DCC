@@ -45,6 +45,8 @@ void add_entry(char* k, enum token_type tag, struct kw_item* map)
     kw_i->is_reserved = true;
     strcpy(kw_i->key, k);
     kw_i->tkn_type = tag;
+
+    return;
 }
 
 enum token_type get_tkn_type (char* k, struct kw_item* map)
