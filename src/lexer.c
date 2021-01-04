@@ -1,5 +1,6 @@
-
 #include <stddef.h>
+#include <stdio.h>
+#include <string.h>
 #include "token.h"
 #include "lexer.h"
 
@@ -73,6 +74,7 @@ void read_token (struct src_string* src, struct token_vector* tkn_vec, struct kw
 
 bool is_at_end (struct src_string* src) { return src->forward >= src->length; }
 char advance (struct src_string* src) { return src->str[src->forward++]; }
+
 bool is_digit (char c) { return '0' <= c && c <= '9'; }
 bool is_alpha (char c) { return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || c == '_'; }
 
@@ -81,15 +83,69 @@ char peek_next (struct src_string* src) { return (src->forward + 1 >= src->lengt
 
 bool match (struct src_string* src, char expected)
 {
-    if (src->str[forward] != expected) return false;
-    forward++;
+    if (src->str[src->forward] != expected) return false;
+    src->forward++;
     return true;
 }
 
+
+//refactor
 void read_number (struct src_string* src, struct token_vector* vec) 
 {
-    while (is_digit(peek(src))) advance();
+    while (is_digit(peek(src))) advance(src);
     // check if number contains a decimal for floating point numbers. 
+
+    int n_bytes = src->forward - src->begin;
+
+    char str_n[n_bytes + 1];
+    char cmp[n_bytes + 1];
+    char* pos = src->str + src->begin;
+
+    long long_v;
+
+    if (n_bytes > 10) {
+        strncpy(str_n, pos, n_bytes);
+        str_n[n_bytes] = '\0';
+        long_v = atol(str_n);
+        add_token(vec, LONG_INT, &long_v);
+        return;
+    }
+
+    strncpy(str_n, pos, n_bytes);
+    str_n[n_bytes] = '\0';
+
+    int int_v = atoi(str_n);
+    sprintf(cmp, "%d", int_v);
+
+    if (!strcmp(str_n, cmp)) {
+        add_token(vec, INTEGER, &int_v);
+    } else {
+        long_v = atol(str_n);
+        add_token(vec, LONG_INT, &long_v); 
+    }
+
+    return;
 }
 
-void read_identifier (struct src_string* src, struct token_vector* vec, struct kw_item* kw_hmap);
+//refactor
+void read_identifier (struct src_string* src, struct token_vector* vec, struct kw_item* kw_hmap)
+{
+    while ( is_digit(peek(src)) || is_alpha(peek(src)) ) advance(src);
+
+    int n_bytes = src->forward - src->begin;
+    char* lexeme = malloc( n_bytes + 1 );
+    char* pos = src->str + src->begin;
+    strncpy(lexeme, pos, n_bytes); 
+    lexeme[n_bytes] = '\0';
+
+    enum token_type type = get_tkn_type(lexeme, kw_hmap);
+
+    if (type == -1) {
+        add_token(vec, IDENTIFIER, lexeme);
+    } else {
+        free(lexeme);
+        add_token(vec, type, NULL);
+    }
+
+    return;
+}

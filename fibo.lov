@@ -1,0 +1,8 @@
+
+instructn fib (int n) => int {
+    if (n <= 1) return n;
+    return fib(n-2) + fib(n-1);
+}
+
+int res = fib(10);
+output(res);
