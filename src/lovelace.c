@@ -27,6 +27,8 @@ void print_tokens (struct token_vector* tkns)
             case SEMICOLON: printf("SEMICOLON ;\n"); break;
             case OUTPUT: printf("OUTPUT output\n"); break;
             case EQUAL: printf("EQUAL =\n"); break;
+            case VOID: printf("VOID void\n"); break;
+            case MAIN: printf("MAIN main\n"); break;
             default:
                 break;
         }

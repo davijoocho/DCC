@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
+
 enum token_type
 {
     LEFT_PAREN = 0, RIGHT_PAREN = 1, LEFT_BRACE = 2, RIGHT_BRACE = 3, 
@@ -19,9 +20,9 @@ enum token_type
     // reserved keywords
 
     INT = 22, AND = 23, ELSE = 24, INSTRUCTN = 25, FOR = 26, 
-    IF = 27, OR = 28, OUTPUT = 29, RETURN = 30, WHILE = 31, LONG = 32,
+    IF = 27, OR = 28, OUTPUT = 29, RETURN = 30, WHILE = 31, LONG = 32, VOID = 33, MAIN = 34,
 
-    EOF_F = 33
+    EOF_F = 35
 };
 
 struct token

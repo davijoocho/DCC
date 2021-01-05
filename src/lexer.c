@@ -93,7 +93,6 @@ bool match (struct src_string* src, char expected)
 void read_number (struct src_string* src, struct token_vector* vec) 
 {
     while (is_digit(peek(src))) advance(src);
-    // check if number contains a decimal for floating point numbers. 
 
     int n_bytes = src->forward - src->begin;
 
