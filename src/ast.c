@@ -38,6 +38,6 @@ struct param_vector* construct_param_vector()
     return param_vec;
 }
     // add error handling for cond: n_params >= MAX_ARGS
-void add_params (struct token* tkn, struct param_vector* param_vec) { if (param_vec->n_params != MAX_ARGS) param_vec->vec[param_vec->n_items++] = tkn; }
+void add_params (struct token* tkn, struct param_vector* param_vec) { if (param_vec->n_params != MAX_ARGS) param_vec->vec[param_vec->n_params++] = tkn; }
 
 
