@@ -15,7 +15,7 @@ enum token_type
 
     ARROW = 18,
 
-    INTEGER = 19, LONG_INT = 20, IDENTIFIER = 21,
+    INTEGER = 19, LONG_INTEGER = 20, IDENTIFIER = 21,
 
     // reserved keywords
 
@@ -29,7 +29,7 @@ struct token
 {
     enum token_type type;
     union {
-        char* string_v;
+        char* string_v;        // identifiers store string_v on heap -> therefore, free.
         int int_v;
         long long_v;
     };

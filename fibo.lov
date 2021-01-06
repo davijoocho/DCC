@@ -6,7 +6,7 @@ instructn fib (int x) => int
 
 instructn main() => void 
 {
-    int res = fib(10);
+    int res = fib(4000000000);
     output(res);
     return;
 }

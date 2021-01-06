@@ -106,7 +106,7 @@ void read_number (struct src_string* src, struct token_vector* vec)
         strncpy(str_n, pos, n_bytes);
         str_n[n_bytes] = '\0';
         long_v = atol(str_n);
-        add_token(vec, LONG_INT, &long_v);
+        add_token(vec, LONG_INTEGER, &long_v);
         return;
     }
 
@@ -120,7 +120,7 @@ void read_number (struct src_string* src, struct token_vector* vec)
         add_token(vec, INTEGER, &int_v);
     } else {
         long_v = atol(str_n);
-        add_token(vec, LONG_INT, &long_v); 
+        add_token(vec, LONG_INTEGER, &long_v); 
     }
 
     return;

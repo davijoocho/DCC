@@ -85,7 +85,7 @@ void add_token (struct token_vector* tkn_vec, enum token_type tag, void* value)
 
     switch (tag) {
         case INTEGER: tkn->int_v = *(int*)value; break;
-        case LONG_INT: tkn->long_v = *(long*)value; break;
+        case LONG_INTEGER: tkn->long_v = *(long*)value; break;
         default: tkn->string_v = value; break;
     }
 

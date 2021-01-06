@@ -8,7 +8,7 @@ void print_tokens (struct token_vector* tkns)
     for (int i = 0; i < tkns->n_items; i++) {
         switch (tkns->vec[i].type) {
             case INTEGER: printf("INTEGER %d \n", tkns->vec[i].int_v); break;
-            case LONG_INT: printf("LONG_INT %li \n", tkns->vec[i].long_v); break;
+            case LONG_INTEGER: printf("LONG_INTEGER %li \n", tkns->vec[i].long_v); break;
             case EOF_F: printf("EOF_F NULL\n"); break;
             case IDENTIFIER: printf("IDENTIFIER %s\n", tkns->vec[i].string_v); break;
             case INT: printf("INT int\n"); break;
