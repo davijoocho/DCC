@@ -1,6 +1,7 @@
 
 #include "token.h"
 
+#define MAX_ARGS 12
 
 enum expr_type { LITERAL, PAREN, BINARY, UNARY, VARIABLE, CALL };
 
@@ -46,22 +47,21 @@ struct variable_expr
     struct token* id;
 };
 
-struct expr_vector;
+struct arg_vector;
 struct call_expr
 {
     struct token* id;
-    struct expr_vector* args;
+    struct arg_vector* args;
 };
 
-struct expr_vector
+struct arg_vector
 {
-    int n_exprs;
-    int max_length;  // defined as 12 for now.
+    int n_args;
     struct expr* vec;
 };
 
-struct expr_vector* construct_expr_vec();
-void add_expr (struct expr* expr, struct expr_vector* expr_vec); 
+struct arg_vector* construct_arg_vector();
+void insert_arg (struct expr* expr, struct arg_vector* arg_vec); 
 
 
 enum stmt_type { VAR_DECL, BLOCK, IF, WHILE, INSTRUCTN, RETURN, ASSIGN }; 
@@ -142,7 +142,6 @@ void add_stmt (struct stmt* stmt, struct stmt_vector* stmt_vec); // realloc when
 struct param_vector
 { 
     int n_params;
-    int max_length;  // defined as 12 for now.
     struct token* vec;
 };
 
