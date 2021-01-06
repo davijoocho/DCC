@@ -50,9 +50,8 @@ struct expr_vector;
 struct call_expr
 {
     struct token* id;
-    struct expr_vector* 
+    struct expr_vector* args;
 };
-
 
 struct expr_vector
 {
@@ -128,7 +127,6 @@ struct instructn
     struct param_vector* params;
     struct stmt* body;
 };
-
 
 struct stmt_vector
 {
