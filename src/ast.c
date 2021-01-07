@@ -36,13 +36,20 @@ void insert_stmt (enum stmt_type tag, void* parsed_stmt, struct stmt_vector* stm
     stmt_p->type = tag;
 
     switch (tag) {
-        case VAR_DECL: stmt_p->decl_stmt = (struct var_decl*)parsed_stmt; break;
-        case BLOCK: stmt_p->block_stmt = (struct block_stmt*)parsed_stmt; break;
-        case IF: stmt_p->if_stmt = (struct if_stmt*)parsed_stmt; break;
-        case WHILE: stmt_p->while_stmt = (struct while_stmt*)parsed_stmt; break;
-        case INSTRUCTN: stmt_p->instructn = (struct instructn*)parsed_stmt; break;
-        case RETURN: stmt_p->return_stmt = (struct return_stmt*)parsed_stmt; break;
-        case ASSIGN: stmt_p->assign_stmt = (struct assign_stmt*)parsed_stmt; break;
+        case VAR_DECL: 
+            stmt_p->decl_stmt = (struct var_decl*)parsed_stmt; break;
+        case BLOCK: 
+            stmt_p->block_stmt = (struct block_stmt*)parsed_stmt; break;
+        case IF: 
+            stmt_p->if_stmt = (struct if_stmt*)parsed_stmt; break;
+        case WHILE: 
+            stmt_p->while_stmt = (struct while_stmt*)parsed_stmt; break;
+        case INSTRUCTN: 
+            stmt_p->instructn = (struct instructn*)parsed_stmt; break;
+        case RETURN: 
+            stmt_p->return_stmt = (struct return_stmt*)parsed_stmt; break;
+        case ASSIGN: 
+            stmt_p->assign_stmt = (struct assign_stmt*)parsed_stmt; break;
     } return;
 };
 
