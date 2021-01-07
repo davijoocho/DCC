@@ -4,7 +4,8 @@
 struct stmt_vector* parse (struct token_vector* tkn_vec)
 {
     struct stmt_vector* program = construct_stmt_vector();
-    while (tkn_vec->vec[tkn_vec->pos] != EOF_F) parse_decl(tkn_vec, program);
+    while (tkn_vec->vec[tkn_vec->pos] != EOF_F) 
+        parse_decl(tkn_vec, program);
     return program;
 }
 
@@ -34,7 +35,7 @@ void parse_var_decl (struct token_vector* tkn_vec, struct stmt_vector* program)
     struct var_decl* var_stmt = malloc(sizeof(struct var_decl));
     var_stmt->info = var_type; var_stmt->id = var_id; var_stmt->value = init_v;
 
-    insert_stmt(VAR_DECL, var, program); 
+    insert_stmt(VAR_DECL, var_stmt, program); 
     return;
 }
 
