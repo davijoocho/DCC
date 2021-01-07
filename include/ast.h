@@ -1,7 +1,7 @@
 
 #include "token.h"
-
 #define MAX_ARGS 12
+
 
 enum expr_type { LITERAL, PAREN, BINARY, UNARY, VARIABLE, CALL };
 
@@ -10,12 +10,12 @@ struct expr
     enum expr_type type;
     union
     {
-        struct literal_expr* literal_expr;
-        struct paren* paren;
-        struct binary_expr* binary_expr;
-        struct unary_expr* unary_expr;
-        struct variable_expr* variable_expr;
-        struct call_expr* call_expr;
+        struct literal_expr* literal;
+        struct paren* grouping;
+        struct binary_expr* binary;
+        struct unary_expr* unary;
+        struct variable_expr* variable;
+        struct call_expr* call;
     };
 };
 
@@ -64,6 +64,8 @@ struct arg_vector* construct_arg_vector();
 void insert_arg (struct expr* expr, struct arg_vector* arg_vec); 
 
 
+
+
 enum stmt_type { VAR_DECL, BLOCK, IF, WHILE, INSTRUCTN, RETURN, ASSIGN }; 
 // expr_stmt? depends on if language has structs and side effects.
 
@@ -78,10 +80,12 @@ struct stmt
         struct return_stmt* return_stmt;
         struct assign_stmt* assign_stmt;
         struct block_stmt* block_stmt;
+        struct output_stmt* output_stmt;
         struct instructn* instructn;
     };
 };
 
+// think about adding structs.
 struct var_decl
 {
     struct token* info;  // i.e. type-info
@@ -113,6 +117,11 @@ struct assign_stmt
     struct expr* value;
 };
 
+struct output_stmt
+{
+    struct expr* output_v;
+};
+
 struct stmt_vector;
 struct block_stmt
 {
@@ -136,7 +145,7 @@ struct stmt_vector
 };
 
 struct stmt_vector* construct_stmt_vector();
-void add_stmt (struct stmt* stmt, struct stmt_vector* stmt_vec); // realloc when nstmts = max_length 
+void insert_stmt (enum stmt_type tag, void* parsed_stmt, struct stmt_vector* stmt_vec); // realloc when nstmts = max_length 
 
 
 struct param_vector
@@ -146,9 +155,5 @@ struct param_vector
 };
 
 struct param_vector* construct_param_vector();
-void add_param (struct token* tkn, struct param_vector* param_vec); 
-
-
-
-
+void insert_param (struct token* tkn, struct param_vector* param_vec); 
 

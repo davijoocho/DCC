@@ -36,7 +36,7 @@ void read_token (struct src_string* src, struct token_vector* tkn_vec, struct kw
         case '*': add_token(tkn_vec, ASTERISK, NULL); break;
         case ',': add_token(tkn_vec, COMMA, NULL); break;
         case '/':
-            if (match(src, '/')) {
+            if (match(src, '/')) {   // rid paren
                 while (peek(src) != '\n' && !is_at_end(src)) advance(src);
             } else {
                 add_token(tkn_vec, SLASH, NULL);
@@ -47,7 +47,7 @@ void read_token (struct src_string* src, struct token_vector* tkn_vec, struct kw
         case '>': add_token(tkn_vec, match(src, '=') ? GREATER_EQUAL : GREATER, NULL); break;
         case '<': add_token(tkn_vec, match(src, '=') ? LESS_EQUAL : LESS, NULL); break;
         case '=': 
-            if (match(src, '=')) {
+            if (match(src, '=')) {  // rid_paren
                 add_token(tkn_vec, EQUAL_EQUAL, NULL);
             } else if (match(src, '>')) {
                 add_token(tkn_vec, ARROW, NULL);
@@ -62,7 +62,7 @@ void read_token (struct src_string* src, struct token_vector* tkn_vec, struct kw
             break;
 
         default:
-            if (is_digit(c)) {
+            if (is_digit(c)) { //rid paren
                 read_number(src, tkn_vec);
             } else if (is_alpha(c)) {
                 read_identifier(src, tkn_vec, kw_hmap);
@@ -72,15 +72,14 @@ void read_token (struct src_string* src, struct token_vector* tkn_vec, struct kw
 
 }
 
+
+// let go of some or inline?
 bool is_at_end (struct src_string* src) { return src->forward >= src->length; }
 char advance (struct src_string* src) { return src->str[src->forward++]; }
-
 bool is_digit (char c) { return '0' <= c && c <= '9'; }
 bool is_alpha (char c) { return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || c == '_'; }
-
 char peek (struct src_string* src) { return (is_at_end(src)) ? '\0' : src->str[src->forward];}
 char peek_next (struct src_string* src) { return (src->forward + 1 >= src->length) ? '\0' : src->str[src->forward + 1]; }
-
 bool match (struct src_string* src, char expected)
 {
     if (src->str[src->forward] != expected) return false;
@@ -116,7 +115,7 @@ void read_number (struct src_string* src, struct token_vector* vec)
     int int_v = atoi(str_n);
     sprintf(cmp, "%d", int_v);
 
-    if (!strcmp(str_n, cmp)) {
+    if (!strcmp(str_n, cmp)) {   // rid paren
         add_token(vec, INTEGER, &int_v);
     } else {
         long_v = atol(str_n);

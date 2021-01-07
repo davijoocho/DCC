@@ -19,8 +19,8 @@ enum token_type
 
     // reserved keywords
 
-    INT = 22, AND = 23, ELSE = 24, INSTRUCTN = 25, FOR = 26, 
-    IF = 27, OR = 28, OUTPUT = 29, RETURN = 30, WHILE = 31, LONG = 32, VOID = 33, MAIN = 34,
+    INT = 22, LONG = 23, VOID = 24, OR = 25, AND = 26, 
+    IF = 27, ELSE = 28, OUTPUT = 29, RETURN = 30, WHILE = 31, INSTRUCTN = 32, FOR = 33, MAIN = 34,
 
     EOF_F = 35
 };
@@ -52,7 +52,7 @@ struct kw_item
 
 int compute_hash (char* k);
 struct kw_item* construct_map();
-void add_entry (char* k, enum token_type tag, struct kw_item* map);
+void insert_entry (char* k, enum token_type tag, struct kw_item* map);
 enum token_type get_tkn_type (char* k, struct kw_item* map);
 
 struct token_vector* construct_vector (); // free token_vector and vec

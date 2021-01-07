@@ -9,16 +9,15 @@
 struct kw_item* construct_map()
 {
     struct kw_item* map = calloc(N_KEYWORDS, sizeof(struct kw_item));
-    char* reserved_kw[N_KEYWORDS] = {"int", "and", "else", "instructn", "for", "if", "or", "output", "return", "while", "long", "void", "main"};
+    char* reserved_kw[N_KEYWORDS] = {"int", "long", "void", "or", "and", "if", "else", "output", "return", "while", "instructn", "for", "main"};
     
     int e, i;
     for (e = 22, i = 0; i < N_KEYWORDS; e++, i++) {
-        add_entry(reserved_kw[i], e, map);
+        insert_entry(reserved_kw[i], e, map);
     }
 
     return map;
 }
-
 
 int compute_hash (char* k)
 {
@@ -33,7 +32,7 @@ int compute_hash (char* k)
 }
 
 
-void add_entry(char* k, enum token_type tag, struct kw_item* map)
+void insert_entry(char* k, enum token_type tag, struct kw_item* map)
 {
     int i = compute_hash(k);
     struct kw_item* kw_i = &map[i];
