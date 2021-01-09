@@ -154,11 +154,12 @@ struct expr* parse_call_expr (struct token_vector* tkn_vec)
     if (tkn_vec->vec[tkn_vec->pos].type == LEFT_PAREN && tkn_vec->pos++) {
         struct arg_vector* args_v = construct_arg_vector();
 
-        if (tkn_vec->vec[tkn_vec->pos].type != RIGHT_PAREN) {
-            do {
+        if (tkn_vec->vec[tkn_vec->pos].type != RIGHT_PAREN)
+            do 
                 insert_arg( parse_expr(tkn_vec), args_v );        // fut_ref -> add error handling for exceeding max args.
-            } while (tkn_vec->vec[tkn_vec->pos].type == COMMA && tkn_vec->pos++);
-        } tkn_vec->pos++; // fut_ref-> add error handling for expecting right parenthesis (expect).
+            while (tkn_vec->vec[tkn_vec->pos].type == COMMA && tkn_vec->pos++);
+
+        tkn_vec->pos++; // fut_ref-> add error handling for expecting right parenthesis (expect).
         
         struct call_expr* fn_c = malloc(sizeof(struct call_expr));
         fn_c->id = ast;  fn_c->args = args_v;
