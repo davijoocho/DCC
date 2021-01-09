@@ -17,8 +17,7 @@ void parse_decl (struct token_vector* tkn_vec, struct stmt_vector* program)
     printf("parse_decl\n");
     enum token_type e;
     for (e = 22; e < 24; e++) 
-        if (tkn_vec->vec[tkn_vec->pos].type == e) {
-            tkn_vec->pos++;
+        if (tkn_vec->vec[tkn_vec->pos].type == e && ++tkn_vec->pos) {
             parse_var_decl(tkn_vec, program);
             return;
         }
