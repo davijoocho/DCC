@@ -1,3 +1,5 @@
+#ifndef AST_H
+#define AST_H
 
 #include "token.h"
 #define MAX_ARGS 12
@@ -38,7 +40,7 @@ struct binary_expr
 
 struct unary_expr
 {
-    enum token_type op;
+    struct token* op;
     struct expr* right;
 };
 
@@ -50,14 +52,14 @@ struct variable_expr
 struct arg_vector;
 struct call_expr
 {
-    struct token* id;
+    struct expr* id;
     struct arg_vector* args;
 };
 
 struct arg_vector
 {
     int n_args;
-    struct expr* vec;
+    struct expr** vec;
 };
 
 struct arg_vector* construct_arg_vector();
@@ -66,7 +68,7 @@ void insert_arg (struct expr* expr, struct arg_vector* arg_vec);
 
 
 
-enum stmt_type { VAR_DECL, BLOCK, IF, WHILE, INSTRUCTN, RETURN, ASSIGN }; 
+enum stmt_type { VAR_DECL, BLOCK, IF_STMT, WHILE_STMT, INSTRUCTN_STMT, RETURN_STMT, ASSIGN }; 
 // expr_stmt? depends on if language has structs and side effects.
 
 struct stmt
@@ -145,15 +147,15 @@ struct stmt_vector
 };
 
 struct stmt_vector* construct_stmt_vector();
-void insert_stmt (enum stmt_type tag, void* parsed_stmt, struct stmt_vector* stmt_vec); // realloc when nstmts = max_length 
-
+void insert_stmt (enum stmt_type tag, void* parsed_stmt, struct stmt_vector* stmt_vec); 
 
 struct param_vector
 { 
     int n_params;
-    struct token* vec;
+    struct token** vec; 
 };
 
 struct param_vector* construct_param_vector();
 void insert_param (struct token* tkn, struct param_vector* param_vec); 
 
+#endif

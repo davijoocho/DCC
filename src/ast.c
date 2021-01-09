@@ -6,7 +6,7 @@ struct arg_vector* construct_arg_vector()
 {
     struct arg_vector* arg_vec = malloc(sizeof(struct arg_vector));
     arg_vec->n_args = 0;
-    arg_vec->vec = malloc( sizeof(struct expr) * MAX_ARGS );
+    arg_vec->vec = malloc( sizeof(struct expr*) * MAX_ARGS );
     return arg_vec;
 }
 
@@ -40,13 +40,13 @@ void insert_stmt (enum stmt_type tag, void* parsed_stmt, struct stmt_vector* stm
             stmt_p->decl_stmt = (struct var_decl*)parsed_stmt; break;
         case BLOCK: 
             stmt_p->block_stmt = (struct block_stmt*)parsed_stmt; break;
-        case IF: 
+        case IF_STMT: 
             stmt_p->if_stmt = (struct if_stmt*)parsed_stmt; break;
-        case WHILE: 
+        case WHILE_STMT: 
             stmt_p->while_stmt = (struct while_stmt*)parsed_stmt; break;
-        case INSTRUCTN: 
+        case INSTRUCTN_STMT: 
             stmt_p->instructn = (struct instructn*)parsed_stmt; break;
-        case RETURN: 
+        case RETURN_STMT: 
             stmt_p->return_stmt = (struct return_stmt*)parsed_stmt; break;
         case ASSIGN: 
             stmt_p->assign_stmt = (struct assign_stmt*)parsed_stmt; break;
@@ -58,9 +58,10 @@ struct param_vector* construct_param_vector()
 {
     struct param_vector* param_vec = malloc(sizeof(struct param_vector));
     param_vec->n_params = 0;
-    param_vec->vec = malloc( sizeof(struct token) * MAX_ARGS );
+    param_vec->vec = malloc( sizeof(struct token*) * MAX_ARGS );
     return param_vec;
 }
+
     // add error handling for cond: n_params >= MAX_ARGS
 void insert_params (struct token* tkn, struct param_vector* param_vec) { 
     if (param_vec->n_params != MAX_ARGS) 

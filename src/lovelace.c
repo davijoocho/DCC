@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include "token.h"
 #include "lexer.h"
+#include "parser.h"
+#include "ast.h"
 
 void print_tokens (struct token_vector* tkns)
 {
@@ -50,8 +52,8 @@ int main(int argc, char* argv[])
 
     struct src_string src = {0, 0, fsize, str};
     struct token_vector* tokens = scan(&src);
-
-    print_tokens(tokens);
+    struct stmt_vector* program = parse(tokens);
+//    print_tokens(tokens);
 
     return 0;
 }
