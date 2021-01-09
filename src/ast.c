@@ -22,35 +22,18 @@ struct stmt_vector* construct_stmt_vector()
 {
     struct stmt_vector* stmt_vec = malloc(sizeof(struct stmt_vector));
     stmt_vec->n_stmts = 0;
-    stmt_vec->max_length = 50;
-    stmt_vec->vec = malloc( sizeof(struct stmt) * 50 );
+    stmt_vec->max_length = 16;
+    stmt_vec->vec = malloc( sizeof(struct stmt*) * 16 );
     return stmt_vec;
 }
 
-void insert_stmt (enum stmt_type tag, void* parsed_stmt, struct stmt_vector* stmt_vec)
+void insert_stmt (struct stmt* parsed_stmt, struct stmt_vector* stmt_vec)
 {
     if (stmt_vec->n_stmts >= stmt_vec->max_length) 
-        stmt_vec->vec = realloc(stmt_vec->vec, sizeof(struct stmt) * (stmt_vec->max_length *= 2));
+        stmt_vec->vec = realloc(stmt_vec->vec, sizeof(struct stmt*) * (stmt_vec->max_length *= 2));
 
-    struct stmt* stmt_p = &stmt_vec->vec[stmt_vec->n_stmts++];
-    stmt_p->type = tag;
-
-    switch (tag) {
-        case VAR_DECL: 
-            stmt_p->decl_stmt = (struct var_decl*)parsed_stmt; break;
-        case BLOCK: 
-            stmt_p->block_stmt = (struct block_stmt*)parsed_stmt; break;
-        case IF_STMT: 
-            stmt_p->if_stmt = (struct if_stmt*)parsed_stmt; break;
-        case WHILE_STMT: 
-            stmt_p->while_stmt = (struct while_stmt*)parsed_stmt; break;
-        case INSTRUCTN_STMT: 
-            stmt_p->instructn = (struct instructn*)parsed_stmt; break;
-        case RETURN_STMT: 
-            stmt_p->return_stmt = (struct return_stmt*)parsed_stmt; break;
-        case ASSIGN: 
-            stmt_p->assign_stmt = (struct assign_stmt*)parsed_stmt; break;
-    } return;
+    stmt_vec->vec[stmt_vec->n_stmts++] = parsed_stmt;
+    return;
 };
 
 
@@ -63,7 +46,7 @@ struct param_vector* construct_param_vector()
 }
 
     // add error handling for cond: n_params >= MAX_ARGS
-void insert_params (struct token* tkn, struct param_vector* param_vec) { 
+void insert_param (struct token* tkn, struct param_vector* param_vec) { 
     if (param_vec->n_params != MAX_ARGS) 
         param_vec->vec[param_vec->n_params++] = tkn; 
     return;

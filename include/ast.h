@@ -67,8 +67,7 @@ void insert_arg (struct expr* expr, struct arg_vector* arg_vec);
 
 
 
-
-enum stmt_type { VAR_DECL, BLOCK, IF_STMT, WHILE_STMT, INSTRUCTN_STMT, RETURN_STMT, ASSIGN }; 
+enum stmt_type { VAR_DECL, BLOCK, IF_STMT, WHILE_STMT, INSTRUCTN_STMT, RETURN_STMT, ASSIGN, OUTPUT_STMT }; 
 // expr_stmt? depends on if language has structs and side effects.
 
 struct stmt
@@ -143,11 +142,11 @@ struct stmt_vector
 {
     int n_stmts;
     int max_length;
-    struct stmt* vec;
+    struct stmt** vec;
 };
 
 struct stmt_vector* construct_stmt_vector();
-void insert_stmt (enum stmt_type tag, void* parsed_stmt, struct stmt_vector* stmt_vec); 
+void insert_stmt (struct stmt* parsed_stmt, struct stmt_vector* stmt_vec); 
 
 struct param_vector
 { 

@@ -1,5 +1,6 @@
 *.swp
 *.o
 *test_var.lov
+*function.lov
 lovelace_c
 
