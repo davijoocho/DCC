@@ -1,6 +1,7 @@
 #ifndef COMPILER_H
 #define COMPILER_H
 
+#include <stdint.h>
 #include <stdbool.h>
 #include "ast.h"
 #include "token.h"

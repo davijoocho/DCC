@@ -60,7 +60,7 @@ void compile_stmt (struct stmt* stmt, struct program_info* prog_info,
 
             if (fn->params != NULL) {
                 sinfo->depth++;
-                for (int i=0; i < fn->params->n_params; i++) {
+                for (int i= fn->params->n_params - 1; i > -1; i--) {
                     store_local(fn->params->vec[i]->decl_stmt->id, sinfo);
                 }
                 sinfo->depth--;
