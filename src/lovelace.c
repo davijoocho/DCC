@@ -53,7 +53,6 @@ int main(int argc, char* argv[])
 
     struct src_string src = {0, 0, fsize, str};
     struct token_vector* tokens = scan(&src);
-    print_tokens(tokens);
     struct stmt_vector* program = parse(tokens);
 
     return 0;

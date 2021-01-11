@@ -340,7 +340,6 @@ struct expr* parse_primary_expr (struct token_vector* tkn_vec)
             p_expr->variable = var_expr;
             return p_expr;
         }
-
         case LEFT_PAREN: {
             struct paren* group = malloc(sizeof(struct paren));
             tkn_vec->pos++;
