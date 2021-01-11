@@ -68,7 +68,7 @@ void init_scope_info (struct scope_info* sinfo);
 void enter_scope (struct scope_info* sinfo);
 void exit_scope (struct scope_info* sinfo);
 void store_local (struct token* local_id, struct scope_info* sinfo);
-void load_local (struct token* local_id, struct scope_info* sinfo);
+int load_local (struct token* local_id, struct scope_info* sinfo);
 
 
 
