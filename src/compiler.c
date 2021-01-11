@@ -49,7 +49,6 @@ void compile_stmt (struct stmt* stmt, struct program_info* prog_info,
         case INSTRUCTN_STMT: {
             struct instructn* fn = stmt->instructn;
 
-
             if (fn->id->type == MAIN) {
                 int mainf_pos = prog_info->bc_pos;
                 memcpy(prog_info->metadata, &mainf_pos, 4);
@@ -177,6 +176,12 @@ void compile_expr (struct expr* expr, struct program_info* prog_info,
                         break;
                     }
 
+                    case ASTERISK: {
+                        compile_expr(expr->binary->left, prog_info, fnid_map, sinfo);
+                        compile_expr(expr->binary->right, prog_info, fnid_map, sinfo);
+                        emit_opcode(IMUL, 0, prog_info);
+                        break;
+                    }
                     case LESS_EQUAL: {
                         compile_expr(expr->binary->left, prog_info, fnid_map, sinfo);
                         compile_expr(expr->binary->right, prog_info, fnid_map, sinfo);
