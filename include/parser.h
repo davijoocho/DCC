@@ -32,7 +32,7 @@ struct expr* parse_primary_expr (struct token_vector* tkn_vec);
 
 struct expr* construct_binary_expr (struct expr* left_expr, struct token* op_tkn, struct expr* right_expr);
 
-void parse_binary_expr (struct expr* ast, struct token_vector* tkn_vec, 
+struct expr* parse_binary_expr (struct expr* ast, struct token_vector* tkn_vec, 
         struct expr* (*parse_fn)(struct token_vector*) );
 
 struct stmt* construct_stmt (enum stmt_type tag, void* stmt);

@@ -6,7 +6,7 @@
 #include "token.h"
 
 #define MAX_LOCAL 32
-enum opcode;
+enum op_code;
 
 // program info -> ok
 struct program_info
@@ -23,7 +23,7 @@ struct program_info
 };
 
 void init_program_info (struct program_info* prog_info);
-char* emit_opcode (enum opcode op, uint16_t n_arg_bytes, struct program_info* prog_info); 
+char* emit_opcode (enum op_code op, uint16_t n_arg_bytes, struct program_info* prog_info); 
 void emit_constant (void* const_v, enum token_type const_t, struct program_info* prog_info);
 // add to constpool and bytecode.
 
@@ -75,8 +75,10 @@ int load_local (struct token* local_id, struct scope_info* sinfo);
 
 // compile stuff here
 void compile (struct stmt_vector* program, char* f_name);
-void compile_stmt (struct stmt* stmt, struct program_info* prog_info);
-
+void compile_stmt (struct stmt* stmt, struct program_info* prog_info,
+                   struct sym_table* fnid_map, struct scope_info* sinfo);
+void compile_expr (struct expr* expr, struct program_info* prog_info,
+                   struct sym_table* fnid_map, struct scope_info* sinfo);
 
 
 
@@ -105,7 +107,7 @@ enum op_code
     LT = 0x13,
     GTEQ = 0x14,
     LTEQ = 0x15,
-    CALL = 0x16,
+    CCALL = 0x16,
     RET = 0x17,
     OUT = 0x18,
     END = 0x19

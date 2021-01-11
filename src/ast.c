@@ -41,14 +41,14 @@ struct param_vector* construct_param_vector()
 {
     struct param_vector* param_vec = malloc(sizeof(struct param_vector));
     param_vec->n_params = 0;
-    param_vec->vec = malloc( sizeof(struct token*) * MAX_ARGS );
+    param_vec->vec = malloc( sizeof(struct stmt*) * MAX_ARGS );
     return param_vec;
 }
 
     // add error handling for cond: n_params >= MAX_ARGS
-void insert_param (struct token* tkn, struct param_vector* param_vec) { 
+void insert_param (struct stmt* stmt, struct param_vector* param_vec) { 
     if (param_vec->n_params != MAX_ARGS) 
-        param_vec->vec[param_vec->n_params++] = tkn; 
+        param_vec->vec[param_vec->n_params++] = stmt; 
     return;
 }
 

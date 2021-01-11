@@ -151,10 +151,10 @@ void insert_stmt (struct stmt* parsed_stmt, struct stmt_vector* stmt_vec);
 struct param_vector
 { 
     int n_params;
-    struct token** vec; 
+    struct stmt** vec; 
 };
 
 struct param_vector* construct_param_vector();
-void insert_param (struct token* tkn, struct param_vector* param_vec); 
+void insert_param (struct stmt* stmt, struct param_vector* param_vec); 
 
 #endif

@@ -1,0 +1,12 @@
+
+
+instructn add (int a, int b) => int {
+    int y = a + b;
+    int z = a + y;
+    return z;
+}
+
+instructn main() => void {
+    int res = add(5, 4);
+    output(res);
+}

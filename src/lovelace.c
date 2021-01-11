@@ -4,40 +4,7 @@
 #include "lexer.h"
 #include "parser.h"
 #include "ast.h"
-
-void print_tokens (struct token_vector* tkns)
-{
-    for (int i = 0; i < tkns->n_items; i++) {
-        switch (tkns->vec[i].type) {
-            case INTEGER: printf("INTEGER %d \n", tkns->vec[i].int_v); break;
-            case LONG_INTEGER: printf("LONG_INTEGER %li \n", tkns->vec[i].long_v); break;
-            case EOF_F: printf("EOF_F NULL\n"); break;
-            case IDENTIFIER: printf("IDENTIFIER %s\n", tkns->vec[i].string_v); break;
-            case INT: printf("INT int\n"); break;
-            case INSTRUCTN: printf("INSTRUCTN instructn\n"); break;
-            case AND: printf("AND and\n"); break;
-            case LEFT_BRACE: printf("LEFT_BRACE {\n"); break;
-            case RIGHT_BRACE: printf("RIGHT_BRACE }\n"); break;
-            case LEFT_PAREN: printf("LEFT_PAREN (\n"); break;
-            case RIGHT_PAREN: printf("RIGHT_PAREN )\n"); break;
-            case ARROW: printf("ARROW =>\n"); break;
-            case IF: printf("IF if\n"); break;
-            case RETURN: printf("RETURN return\n"); break;
-            case PLUS: printf("PLUS +\n"); break;
-            case MINUS: printf("MINUS -\n"); break;
-            case LESS_EQUAL: printf("LESS_EQUAL <=\n"); break;
-            case SEMICOLON: printf("SEMICOLON ;\n"); break;
-            case OUTPUT: printf("OUTPUT output\n"); break;
-            case EQUAL: printf("EQUAL =\n"); break;
-            case VOID: printf("VOID void\n"); break;
-            case MAIN: printf("MAIN main\n"); break;
-            case COMMA: printf("COMMA ,\n"); break;
-            default:
-                break;
-        }
-    }
-    return;
-}
+#include "compiler.h"
 
 int main(int argc, char* argv[])
 {
@@ -54,6 +21,7 @@ int main(int argc, char* argv[])
     struct src_string src = {0, 0, fsize, str};
     struct token_vector* tokens = scan(&src);
     struct stmt_vector* program = parse(tokens);
+    compile(program, argv[1]);
 
     return 0;
 }

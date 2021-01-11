@@ -1,6 +1,6 @@
 
-lovelace_c: lovelace.o lexer.o token.o ast.o parser.o
-	gcc -o lovelace_c lovelace.o lexer.o token.o ast.o parser.o
+lovelace_c: lovelace.o lexer.o token.o ast.o parser.o compiler.o
+	gcc -o lovelace_c lovelace.o lexer.o token.o ast.o parser.o compiler.o
 
 lovelace.o: ./src/lovelace.c
 	gcc -c -I./include ./src/lovelace.c
@@ -17,6 +17,9 @@ ast.o: ./src/ast.c ./include/ast.h
 parser.o: ./src/parser.c ./include/parser.h
 	gcc -c -I./include ./src/parser.c
 
+compiler.o: ./src/compiler.c ./include/compiler.h
+	gcc -c -I./include ./src/compiler.c
+
 clean:
-	rm *.o lovelace_c
+	rm *.o
 
