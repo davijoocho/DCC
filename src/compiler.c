@@ -94,16 +94,22 @@ void compile_stmt (struct stmt* stmt, struct program_info* prog_info,
             break;
         }
         case IF_STMT: {
+
             struct if_stmt* ifstmt = stmt->if_stmt;
             compile_expr(ifstmt->cond, prog_info, fnid_map, sinfo);
 
-            char* jmpf_pos = emit_opcode(JMPF, 2, prog_info);
+            char* jmpf_pos = emit_opcode(JMPF, 2, prog_info); 
             compile_stmt(ifstmt->then_branch, prog_info, fnid_map, sinfo);
 
-            memcpy(jmpf_pos, &prog_info->bc_pos, 2);
-
-            if (ifstmt->else_branch != NULL)
+            if (ifstmt->else_branch != NULL) {
+                char* jmp_end = emit_opcode(JMP, 2, prog_info); 
+                memcpy(jmpf_pos, &prog_info->bc_pos, 2);
                 compile_stmt(ifstmt->else_branch, prog_info, fnid_map, sinfo);
+                memcpy(jmp_end, &prog_info->bc_pos, 2);
+            } else {
+                memcpy(jmpf_pos, &prog_info->bc_pos, 2);
+            }
+
             break;
         }
         case WHILE_STMT: {
@@ -172,6 +178,7 @@ void compile_expr (struct expr* expr, struct program_info* prog_info,
                     case GREATER: emit_opcode(GT, 0, prog_info); break;
                     case AND: emit_opcode(CAND, 0, prog_info); break;
                     case OR: emit_opcode(COR, 0, prog_info); break;
+                    case EQUAL_EQUAL: emit_opcode(EQ, 0, prog_info); break;
                     default: break;
                 }
 

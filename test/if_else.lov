@@ -1,0 +1,13 @@
+
+
+instructn main() => void {
+
+    int n = 4;
+    if (n < 8 and n == 4) {
+        output(2);
+    } else {
+        output(1);
+    }
+
+    output(n);
+}
