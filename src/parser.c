@@ -6,7 +6,7 @@ struct stmt_vector* parse (struct token_vector* tkn_vec)
 {
     struct stmt_vector* program = construct_stmt_vector();
 
-    while (tkn_vec->vec[tkn_vec->pos].type != EOF_F)
+    while (!match_op(tkn_vec, 1, EOF_F))
         insert_stmt(parse_decl(tkn_vec), program);
 
     return program;
@@ -15,11 +15,8 @@ struct stmt_vector* parse (struct token_vector* tkn_vec)
 struct stmt* parse_decl (struct token_vector* tkn_vec)
 {
     // fut_ref -> error handle: catch exception if error occurred during descent (synchronize, setjmp, longjmp)
-
-    enum token_type e;
-    for (e = 22; e < 24; e++) 
-        if (tkn_vec->vec[tkn_vec->pos].type == e && ++tkn_vec->pos) 
-            return parse_var_decl(tkn_vec);
+    if (match_op(tkn_vec, 2, INT, LONG) && ++tkn_vec->pos) 
+        return parse_var_decl(tkn_vec);
 
     return parse_stmt(tkn_vec);
 }
@@ -30,7 +27,7 @@ struct stmt* parse_var_decl (struct token_vector* tkn_vec)
     struct token* var_id = &tkn_vec->vec[tkn_vec->pos++];   // fut_ref -> error handle: if not id (expect)
     struct expr* init_v = NULL;
 
-    if (tkn_vec->vec[tkn_vec->pos].type == EQUAL && tkn_vec->pos++) 
+    if (match_op(tkn_vec, 1, EQUAL) && tkn_vec->pos++) 
         init_v = parse_expr(tkn_vec);
     tkn_vec->pos++; // fut_ref -> error handle: if not semicolon (expect);
 
@@ -44,20 +41,13 @@ struct stmt* parse_var_decl (struct token_vector* tkn_vec)
 struct stmt* parse_stmt (struct token_vector* tkn_vec)
 {
     switch (tkn_vec->vec[tkn_vec->pos++].type) {
-        case RETURN: 
-            return parse_return_stmt(tkn_vec);
-        case WHILE: 
-            return parse_while_stmt(tkn_vec);
-        case IF: 
-            return parse_if_stmt(tkn_vec); 
-        case LEFT_BRACE: 
-            return parse_block_stmt(tkn_vec); 
-        case INSTRUCTN: 
-            return parse_instructn_stmt(tkn_vec); 
-        case OUTPUT: 
-            return parse_output_stmt(tkn_vec); 
-        case IDENTIFIER:
-            return parse_assign_stmt(tkn_vec);
+        case RETURN: return parse_return_stmt(tkn_vec);
+        case WHILE: return parse_while_stmt(tkn_vec);
+        case IF: return parse_if_stmt(tkn_vec); 
+        case LEFT_BRACE: return parse_block_stmt(tkn_vec); 
+        case INSTRUCTN: return parse_instructn_stmt(tkn_vec); 
+        case OUTPUT: return parse_output_stmt(tkn_vec); 
+        case IDENTIFIER: return parse_assign_stmt(tkn_vec);
         default:   // fut_ref -> error handle
             break;
     }
@@ -71,7 +61,7 @@ struct stmt* parse_return_stmt (struct token_vector* tkn_vec)
     struct return_stmt* ret_stmt = malloc(sizeof(struct return_stmt));
     ret_stmt->ret_v = NULL;
 
-    if (tkn_vec->vec[tkn_vec->pos].type != SEMICOLON)
+    if (!match_op(tkn_vec, 1, SEMICOLON))
         ret_stmt->ret_v = parse_expr(tkn_vec);
     tkn_vec->pos++;      // fut_ref -> error handle: expect semicolon.
 
@@ -82,8 +72,9 @@ struct stmt* parse_block_stmt (struct token_vector* tkn_vec)
 {
     struct stmt_vector* b_stmts = construct_stmt_vector();
 
-    while (tkn_vec->vec[tkn_vec->pos].type != RIGHT_BRACE)   // fut_ref -> error handle: check for EOF.
+    while (!match_op(tkn_vec, 1, RIGHT_BRACE))   // fut_ref -> error handle: check for EOF.
         insert_stmt( parse_decl(tkn_vec) ,b_stmts);
+    
     tkn_vec->pos++;     // fut_ref -> error handle: expect right brace.
 
     struct block_stmt* block = malloc(sizeof(struct block_stmt));
@@ -117,7 +108,7 @@ struct stmt* parse_if_stmt (struct token_vector* tkn_vec)
     stmt->then_branch = parse_stmt(tkn_vec);
     stmt->else_branch = NULL;
 
-    if (tkn_vec->vec[tkn_vec->pos].type == ELSE && tkn_vec->pos++)
+    if (match_op(tkn_vec, 1, ELSE) && tkn_vec->pos++)
         stmt->else_branch = parse_stmt(tkn_vec);
 
     return construct_stmt(IF_STMT, stmt);
@@ -155,7 +146,7 @@ struct stmt* parse_instructn_stmt (struct token_vector* tkn_vec)
 
     tkn_vec->pos++;  // fut_ref -> error handle: expect a left paren.
 
-    if (tkn_vec->vec[tkn_vec->pos].type != RIGHT_PAREN) {
+    if (!match_op(tkn_vec, 1, RIGHT_PAREN)) {
         fn->params = construct_param_vector();
         do {
             struct var_decl* param = malloc(sizeof(struct var_decl));
@@ -164,13 +155,16 @@ struct stmt* parse_instructn_stmt (struct token_vector* tkn_vec)
             param->value = NULL;
 
             insert_param( construct_stmt(VAR_DECL, param) , fn->params);
-        } while (tkn_vec->vec[tkn_vec->pos].type == COMMA && tkn_vec->pos++); 
-    } 
+        } while (match_op(tkn_vec, 1, COMMA) && tkn_vec->pos++); 
+    } else {
+        fn->params = NULL;
+    }
+
 
     tkn_vec->pos++;   // fut_ref -> error handle: expect a RIGHT_PAREN.
     tkn_vec->pos++;   // fut_ref -> error handle: expect an ARROW '=>'.
 
-    fn->info = &tkn_vec->vec[tkn_vec->pos++];
+    fn->info = &tkn_vec->vec[tkn_vec->pos++];   // fut_ref -> error handle: expect a function return type 
     fn->body = parse_stmt(tkn_vec);
 
     return construct_stmt(INSTRUCTN_STMT, fn);
@@ -178,17 +172,18 @@ struct stmt* parse_instructn_stmt (struct token_vector* tkn_vec)
 
 
 
-
 // fut_ref -> parser functions for binary expressions are repetitive 
 // fut_ref -> parse by precedence by maintaining precedence table and function pointers (no need for multiple functions).
 
-struct expr* parse_expr (struct token_vector* tkn_vec) { return parse_or_expr(tkn_vec); }
+struct expr* parse_expr (struct token_vector* tkn_vec) { 
+    return parse_or_expr(tkn_vec); 
+}
 
 struct expr* parse_or_expr (struct token_vector* tkn_vec) 
 {
     struct expr* ast = parse_and_expr(tkn_vec);
 
-    while (tkn_vec->vec[tkn_vec->pos].type == OR)
+    while (match_op(tkn_vec, 1, OR))
         ast = parse_binary_expr(ast, tkn_vec, &parse_and_expr);
     return ast;
 }
@@ -197,7 +192,7 @@ struct expr* parse_and_expr (struct token_vector* tkn_vec)
 {
     struct expr* ast = parse_equality_expr(tkn_vec);
 
-    while (tkn_vec->vec[tkn_vec->pos].type == AND)
+    while (match_op(tkn_vec, 1, AND))
         ast = parse_binary_expr(ast, tkn_vec, &parse_equality_expr);
     return ast;
 }
@@ -205,26 +200,19 @@ struct expr* parse_and_expr (struct token_vector* tkn_vec)
 struct expr* parse_equality_expr (struct token_vector* tkn_vec) 
 {
     struct expr* ast = parse_comparison_expr(tkn_vec);
-    enum token_type e;
+    
+    while (match_op(tkn_vec, 2, BANG_EQUAL, EQUAL_EQUAL))
+        ast = parse_binary_expr(ast, tkn_vec, &parse_comparison_expr);
 
-    for (e = 12; e < 14; e++)
-        if (tkn_vec->vec[tkn_vec->pos].type == e) {
-            ast = parse_binary_expr(ast, tkn_vec, &parse_comparison_expr);
-            e = 12; 
-        }
     return ast;
 }
 
 struct expr* parse_comparison_expr (struct token_vector* tkn_vec)
 {
     struct expr* ast = parse_term_expr(tkn_vec);
-    enum token_type e;
-
-    for (e = 14; e < 18; e++) 
-        if (tkn_vec->vec[tkn_vec->pos].type == e) {
-            ast = parse_binary_expr(ast, tkn_vec, &parse_term_expr);
-            e = 14;
-        }
+    
+    while (match_op(tkn_vec, 4, LESS_EQUAL, LESS, GREATER, GREATER_EQUAL))
+        ast = parse_binary_expr(ast, tkn_vec, &parse_term_expr);
 
     return ast;
 }
@@ -232,13 +220,9 @@ struct expr* parse_comparison_expr (struct token_vector* tkn_vec)
 struct expr* parse_term_expr (struct token_vector* tkn_vec)
 {
     struct expr* ast = parse_factor_expr(tkn_vec);
-    enum token_type e;
 
-    for (e = 4; e < 6; e++) 
-        if (tkn_vec->vec[tkn_vec->pos].type == e) {
-            ast = parse_binary_expr(ast, tkn_vec, &parse_factor_expr);
-            e = 4;
-        }
+    while (match_op(tkn_vec, 2, PLUS, MINUS))
+        ast = parse_binary_expr(ast, tkn_vec, &parse_factor_expr);
 
     return ast;
 }
@@ -246,20 +230,17 @@ struct expr* parse_term_expr (struct token_vector* tkn_vec)
 struct expr* parse_factor_expr (struct token_vector* tkn_vec)
 {
     struct expr* ast = parse_unary_expr(tkn_vec);
-    enum token_type e;
 
-    for (e = 8; e < 10; e++) 
-        if (tkn_vec->vec[tkn_vec->pos].type == e) {
-            ast = parse_binary_expr(ast, tkn_vec, &parse_unary_expr);
-            e = 8;
-        }
+    while(match_op(tkn_vec, 2, ASTERISK, SLASH))
+        ast = parse_binary_expr(ast, tkn_vec, &parse_unary_expr);
+
     return ast;
 }
 
 
 struct expr* parse_unary_expr (struct token_vector* tkn_vec)
 {
-    if (tkn_vec->vec[tkn_vec->pos].type == BANG || tkn_vec->vec[tkn_vec->pos].type == MINUS) {
+    if (match_op(tkn_vec, 2, BANG, MINUS)) {
         struct token* operator = &tkn_vec->vec[tkn_vec->pos++];
         struct expr* r_ast = parse_unary_expr(tkn_vec);
 
@@ -280,10 +261,10 @@ struct expr* parse_call_expr (struct token_vector* tkn_vec)
 {
     struct expr* ast = parse_primary_expr(tkn_vec);
 
-    if (tkn_vec->vec[tkn_vec->pos].type == LEFT_PAREN && tkn_vec->pos++) {
+    if (match_op(tkn_vec, 1, LEFT_PAREN) && tkn_vec->pos++) {
         struct arg_vector* args_v = construct_arg_vector();
 
-        if (tkn_vec->vec[tkn_vec->pos].type != RIGHT_PAREN)
+        if (!match_op(tkn_vec, 1, RIGHT_PAREN))
             do 
                 insert_arg( parse_expr(tkn_vec), args_v );        // fut_ref -> add error handling for exceeding max args.
             while (tkn_vec->vec[tkn_vec->pos].type == COMMA && tkn_vec->pos++);
@@ -362,7 +343,7 @@ struct expr* construct_binary_expr (struct expr* left_expr, struct token* op_tkn
 struct expr* parse_binary_expr (struct expr* ast, struct token_vector* tkn_vec, 
         struct expr* (*parse_fn)(struct token_vector*) )
 {
-    struct token* operator = &tkn_vec->vec[tkn_vec->pos++];
+    struct token* operator = &tkn_vec->vec[tkn_vec->pos++]; 
     struct expr* r_ast = parse_fn(tkn_vec);
     return construct_binary_expr(ast, operator, r_ast);
 }
@@ -385,5 +366,19 @@ struct stmt* construct_stmt (enum stmt_type tag, void* stmt)
     return p_stmt;
 }
 
+bool match_op (struct token_vector* tkn_vec, int n, ...)
+{
 
-
+    int i;
+    va_list op_types;
+    va_start(op_types, n);
+    for (i=0; i<n; i++) {
+        enum token_type e = va_arg(op_types, int);
+        if (tkn_vec->vec[tkn_vec->pos].type == e) {
+            va_end(op_types);
+            return true;
+        }
+    }
+    va_end(op_types);
+    return false;
+}

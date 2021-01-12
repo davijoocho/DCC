@@ -1,6 +1,8 @@
 #ifndef PARSER_H
 #define PARSER_H
 
+#include <stdarg.h>
+#include <stdbool.h>
 #include "ast.h"
 #include "token.h"
 
@@ -36,5 +38,8 @@ struct expr* parse_binary_expr (struct expr* ast, struct token_vector* tkn_vec,
         struct expr* (*parse_fn)(struct token_vector*) );
 
 struct stmt* construct_stmt (enum stmt_type tag, void* stmt);
+
+bool match_op (struct token_vector* tkn_vec, int n, ...);
+
 
 #endif

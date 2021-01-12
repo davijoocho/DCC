@@ -4,9 +4,6 @@
 #include "ast.h"
 
 
-
-
-
 void compile (struct stmt_vector* program, char* f_name)
 {
     struct program_info prog_info;
@@ -47,6 +44,7 @@ void compile_stmt (struct stmt* stmt, struct program_info* prog_info,
 {
     switch (stmt->type) {
         case INSTRUCTN_STMT: {
+
             struct instructn* fn = stmt->instructn;
 
             if (fn->id->type == MAIN) {
@@ -64,6 +62,7 @@ void compile_stmt (struct stmt* stmt, struct program_info* prog_info,
                 }
                 sinfo->depth--;
             }
+
 
             compile_stmt(fn->body, prog_info, fnid_map, sinfo);
 
@@ -85,11 +84,11 @@ void compile_stmt (struct stmt* stmt, struct program_info* prog_info,
         case VAR_DECL: {
             struct var_decl* var = stmt->decl_stmt;
 
-            if (var->value != NULL)
+            if (var->value != NULL) {
                 compile_expr(var->value, prog_info, fnid_map, sinfo);
-
-            char* arg_pos = emit_opcode(STORE, 1, prog_info);
-            memcpy(arg_pos, &sinfo->n_locals, 1); 
+                char* arg_pos = emit_opcode(STORE, 1, prog_info);
+                memcpy(arg_pos, &sinfo->n_locals, 1); 
+            }
 
             store_local(var->id, sinfo);
             break;
@@ -117,11 +116,10 @@ void compile_stmt (struct stmt* stmt, struct program_info* prog_info,
             char* jmpf_pos = emit_opcode(JMPF, 2, prog_info);
             compile_stmt(wh_stmt->body, prog_info, fnid_map, sinfo);
 
-            memcpy(jmpf_pos, &prog_info->bc_pos, 2);
-            
-
             char* jmp_arg = emit_opcode(JMP, 2, prog_info);
             memcpy(jmp_arg, &jmp_pos, 2);
+
+            memcpy(jmpf_pos, &prog_info->bc_pos, 2);
 
             break;
         }
@@ -160,39 +158,23 @@ void compile_expr (struct expr* expr, struct program_info* prog_info,
     switch (expr->type) {
 
         case BINARY: {    // for now just assume INTEGER and support for others later.
+                compile_expr(expr->binary->left, prog_info, fnid_map, sinfo);
+                compile_expr(expr->binary->right, prog_info, fnid_map, sinfo);
+
                 switch (expr->binary->op->type) {
-
-                    case PLUS: {
-                        compile_expr(expr->binary->left, prog_info, fnid_map, sinfo);
-                        compile_expr(expr->binary->right, prog_info, fnid_map, sinfo);
-                        emit_opcode(IADD, 0, prog_info);
-                        break;
-                    }
-
-                    case MINUS: {
-                        compile_expr(expr->binary->left, prog_info, fnid_map, sinfo);
-                        compile_expr(expr->binary->right, prog_info, fnid_map, sinfo);
-                        emit_opcode(ISUB, 0, prog_info);
-                        break;
-                    }
-
-                    case ASTERISK: {
-                        compile_expr(expr->binary->left, prog_info, fnid_map, sinfo);
-                        compile_expr(expr->binary->right, prog_info, fnid_map, sinfo);
-                        emit_opcode(IMUL, 0, prog_info);
-                        break;
-                    }
-                    case LESS_EQUAL: {
-                        compile_expr(expr->binary->left, prog_info, fnid_map, sinfo);
-                        compile_expr(expr->binary->right, prog_info, fnid_map, sinfo);
-                        emit_opcode(LTEQ, 0, prog_info);
-                        break;
-                    }
-                     
-                    // other binary expr later.
-                    default:
-                        break;
+                    case PLUS: emit_opcode(IADD, 0, prog_info); break;
+                    case MINUS: emit_opcode(ISUB, 0, prog_info); break;
+                    case ASTERISK: emit_opcode(IMUL, 0, prog_info); break;
+                    case SLASH: emit_opcode(IDIV, 0, prog_info); break;
+                    case LESS_EQUAL: emit_opcode(LTEQ, 0, prog_info); break;
+                    case LESS: emit_opcode(LT, 0, prog_info); break;
+                    case GREATER_EQUAL: emit_opcode(GTEQ, 0, prog_info); break;
+                    case GREATER: emit_opcode(GT, 0, prog_info); break;
+                    case AND: emit_opcode(CAND, 0, prog_info); break;
+                    case OR: emit_opcode(COR, 0, prog_info); break;
+                    default: break;
                 }
+
             break;
         }
 

@@ -1,0 +1,13 @@
+
+
+instructn main() => void {
+
+    int n;
+    n = 9;
+    n = 10;
+
+    int x = n;
+
+    output(n);
+    output(x);
+}

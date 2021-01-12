@@ -21,5 +21,5 @@ compiler.o: ./src/compiler.c ./include/compiler.h
 	gcc -c -I./include ./src/compiler.c
 
 clean:
-	rm *.o
+	rm *.o lovelace_c
 

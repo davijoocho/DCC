@@ -1,0 +1,12 @@
+
+
+instructn main() => void {
+
+    int n = 16;
+
+    while (n < 100) {
+        n = n + 1;
+        output(n);
+    }
+
+}

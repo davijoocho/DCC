@@ -1,0 +1,14 @@
+
+instructn add(int a, int b) => int {
+    return a + b;
+}
+
+instructn main() => void {
+    int n = 0;
+    while (n < 100) {
+        output(n);
+        n = add(n, 3);
+    }
+
+    output(n);
+}
