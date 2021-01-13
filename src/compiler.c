@@ -379,8 +379,12 @@ void exit_scope (struct scope_info* sinfo)
 {
     struct local* loc_id = &sinfo->locals[sinfo->n_locals-1];
 
-    while (loc_id->depth_declared == sinfo->depth)
-        loc_id = &sinfo->locals[--sinfo->n_locals-1];
+    while (loc_id->depth_declared == sinfo->depth && sinfo->n_locals > 0)
+        if (sinfo->n_locals != 1) 
+            loc_id = &sinfo->locals[--sinfo->n_locals-1];
+        else
+            sinfo->n_locals--;
+
     sinfo->depth--;
 }
 
