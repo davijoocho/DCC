@@ -208,10 +208,21 @@ void compile_expr (struct expr* expr, struct program_info* prog_info,
             break;
         }
 
-        case PAREN:
+        case PAREN: 
+            compile_expr(expr->grouping->expr, prog_info, fnid_map, sinfo); 
             break;
-        case UNARY:
+
+        case UNARY: {
+            compile_expr(expr->unary->right, prog_info, fnid_map, sinfo);
+
+            switch (expr->unary->op->type) {
+                case BANG: emit_opcode(NOT, 0, prog_info); break;
+                case MINUS: emit_opcode(NEG, 0, prog_info); break;
+                default: 
+                    break;
+            } 
             break;
+        }
 
         case VARIABLE: {
             char* arg_pos = emit_opcode(LOAD, 1, prog_info);
@@ -219,6 +230,7 @@ void compile_expr (struct expr* expr, struct program_info* prog_info,
             memcpy(arg_pos, &local_pos, 1);
             break;
         }
+
         case CALL: {
             int n_args = expr->call->args->n_args;
 
@@ -233,6 +245,7 @@ void compile_expr (struct expr* expr, struct program_info* prog_info,
             memcpy(arg_pos, &n_args, 1);
             break;
         }
+
     }
 }
 
