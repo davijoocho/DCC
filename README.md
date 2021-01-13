@@ -17,4 +17,6 @@
    <li> Structs </li>
    <li> Arrays </li>
    <li> Imports </li>
+   <li> Type Checking </li>
+   <li> Strings, Floats, Long, Double, Boolean </li>
 </ul>
