@@ -10,3 +10,11 @@
 
 <img src="https://github.com/davijoocho/Lovelace-Compiler/blob/main/pics/Screen%20Shot%202021-01-12%20at%2011.57.50%20PM.png">
 </img>
+
+<h2> TODOS (Additional Fts.) </h2>
+<ul>
+   <li> Procedures </li>
+   <li> Structs </li>
+   <li> Arrays </li>
+   <li> Imports </li>
+</ul>
