@@ -19,4 +19,5 @@
    <li> Imports </li>
    <li> Type Checking </li>
    <li> Strings, Floats, Long, Double, Boolean </li>
+   <li> File I/O </li>
 </ul>
