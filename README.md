@@ -20,4 +20,5 @@
    <li> Type Checking </li>
    <li> Strings, Floats, Long, Double, Boolean </li>
    <li> File I/O </li>
+   <li> Globals </li>
 </ul>
