@@ -45,7 +45,7 @@ struct stmt* parse_stmt (struct token_vector* tkn_vec)
         case WHILE: return parse_while_stmt(tkn_vec);
         case IF: return parse_if_stmt(tkn_vec); 
         case LEFT_BRACE: return parse_block_stmt(tkn_vec); 
-        case INSTRUCTN: return parse_instructn_stmt(tkn_vec); 
+        case FUNCTION: return parse_function_stmt(tkn_vec); 
         case OUTPUT: return parse_output_stmt(tkn_vec); 
         case IDENTIFIER: return parse_assign_stmt(tkn_vec);
         default:   // fut_ref -> error handle
@@ -139,9 +139,9 @@ struct stmt* parse_assign_stmt (struct token_vector* tkn_vec)
     return construct_stmt(ASSIGN, eq_stmt);
 }
 
-struct stmt* parse_instructn_stmt (struct token_vector* tkn_vec)
+struct stmt* parse_function_stmt (struct token_vector* tkn_vec)
 {
-    struct instructn* fn = malloc(sizeof(struct instructn));
+    struct function_stmt* fn = malloc(sizeof(struct function_stmt));
     fn->id = &tkn_vec->vec[tkn_vec->pos++];
 
     tkn_vec->pos++;  // fut_ref -> error handle: expect a left paren.
@@ -167,7 +167,7 @@ struct stmt* parse_instructn_stmt (struct token_vector* tkn_vec)
     fn->info = &tkn_vec->vec[tkn_vec->pos++];   // fut_ref -> error handle: expect a function return type 
     fn->body = parse_stmt(tkn_vec);
 
-    return construct_stmt(INSTRUCTN_STMT, fn);
+    return construct_stmt(FUNCTION_STMT, fn);
 }
 
 
@@ -358,7 +358,7 @@ struct stmt* construct_stmt (enum stmt_type tag, void* stmt)
         case BLOCK: p_stmt->block_stmt = (struct block_stmt*)stmt; break;
         case IF_STMT: p_stmt->if_stmt = (struct if_stmt*)stmt; break;
         case WHILE_STMT: p_stmt->while_stmt = (struct while_stmt*)stmt; break;
-        case INSTRUCTN_STMT: p_stmt->instructn = (struct instructn*)stmt; break;
+        case FUNCTION_STMT: p_stmt->function = (struct function_stmt*)stmt; break;
         case RETURN_STMT: p_stmt->return_stmt = (struct return_stmt*)stmt; break;
         case ASSIGN: p_stmt->assign_stmt = (struct assign_stmt*)stmt; break;
         case OUTPUT_STMT: p_stmt->output_stmt = (struct output_stmt*)stmt; break;

@@ -16,7 +16,7 @@ struct stmt* parse_return_stmt (struct token_vector* tkn_vec);
 struct stmt* parse_while_stmt (struct token_vector* tkn_vec);
 struct stmt* parse_if_stmt (struct token_vector* tkn_vec);
 struct stmt* parse_block_stmt (struct token_vector* tkn_vec);
-struct stmt* parse_instructn_stmt (struct token_vector* tkn_vec);
+struct stmt* parse_function_stmt (struct token_vector* tkn_vec);
 struct stmt* parse_assign_stmt (struct token_vector* tkn_vec);
 struct stmt* parse_output_stmt (struct token_vector* tkn_vec);
 

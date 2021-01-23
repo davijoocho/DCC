@@ -67,7 +67,7 @@ void insert_arg (struct expr* expr, struct arg_vector* arg_vec);
 
 
 
-enum stmt_type { VAR_DECL, BLOCK, IF_STMT, WHILE_STMT, INSTRUCTN_STMT, RETURN_STMT, ASSIGN, OUTPUT_STMT }; 
+enum stmt_type { VAR_DECL, BLOCK, IF_STMT, WHILE_STMT, FUNCTION_STMT, RETURN_STMT, ASSIGN, OUTPUT_STMT }; 
 // expr_stmt? depends on if language has structs and side effects.
 
 struct stmt
@@ -82,7 +82,7 @@ struct stmt
         struct assign_stmt* assign_stmt;
         struct block_stmt* block_stmt;
         struct output_stmt* output_stmt;
-        struct instructn* instructn;
+        struct function_stmt* function;
     };
 };
 
@@ -130,7 +130,7 @@ struct block_stmt
 };
 
 struct param_vector;
-struct instructn
+struct function_stmt
 {
     struct token* info;  // i.e return-type
     struct token* id; 

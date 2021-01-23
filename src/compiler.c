@@ -43,17 +43,28 @@ void compile_stmt (struct stmt* stmt, struct program_info* prog_info,
                    struct sym_table* fnid_map, struct scope_info* sinfo)
 {
     switch (stmt->type) {
-        case INSTRUCTN_STMT: {
-
-            struct instructn* fn = stmt->instructn;
+        case FUNCTION_STMT: {
+            struct function_stmt* fn = stmt->function;
 
             if (fn->id->type == MAIN) {
                 int mainf_pos = prog_info->bc_pos;
                 memcpy(prog_info->metadata, &mainf_pos, 4);
             }
             
-            if (fn->id->type != MAIN)
-                insert_fnid(fn->id->string_v, prog_info->bc_pos, fnid_map);
+            if (fn->id->type != MAIN) {
+                struct fnid_item* fn_item = find_fnid(fn->id->string_v, fnid_map);
+
+                if (!fn_item) {
+                    insert_fnid(fn->id->string_v, true, prog_info->bc_pos, fnid_map);
+
+                } else {
+                    for (int i = 0; i < fn_item->n_calls; i++)
+                        memcpy(fn_item->called_positions[i], &prog_info->bc_pos, 2);
+
+                    fn_item->is_defined = true;
+                    fn_item->pos = prog_info->bc_pos;
+                }
+            }
 
             if (fn->params != NULL) {
                 sinfo->depth++;
@@ -238,9 +249,20 @@ void compile_expr (struct expr* expr, struct program_info* prog_info,
                 compile_expr( expr->call->args->vec[i], prog_info, fnid_map, sinfo);
             
             char* arg_pos = emit_opcode(CCALL, 3, prog_info);
-            uint16_t fn_pos = find_fn_pos(expr->call->id->variable->id->string_v, fnid_map);
+            char* f_id = expr->call->id->variable->id->string_v;
 
-            memcpy(arg_pos, &fn_pos, 2);
+            struct fnid_item* fn = find_fnid(f_id, fnid_map);
+
+            if (!fn) {
+                fn = insert_fnid(f_id, false, 0, fnid_map);
+                insert_called_pos(arg_pos, fn);
+            } else {
+                if (fn->is_defined)
+                    memcpy(arg_pos, &fn->pos, 2);
+                else
+                    insert_called_pos(arg_pos, fn);
+            }
+
             arg_pos += 2;
             memcpy(arg_pos, &n_args, 1);
             break;
@@ -327,7 +349,7 @@ int hash_id (char* k, int table_size)
 }
 
 
-void insert_fnid (char* id, uint16_t offset, struct sym_table* fnid_map)
+struct fnid_item* insert_fnid (char* id, bool def_status, uint16_t offset, struct sym_table* fnid_map)
 {
     if (fnid_map->n_fnids * 1.0 / fnid_map->size > 0.50) {
         int prev_size = fnid_map->size;
@@ -344,26 +366,42 @@ void insert_fnid (char* id, uint16_t offset, struct sym_table* fnid_map)
     }
 
     f_item->is_reserved = true;
+    f_item->is_defined = def_status;
     f_item->key = id;
     f_item->pos = offset;
+    f_item->limit = 20;
+    f_item->called_positions = malloc(sizeof(char*) * f_item->limit);
+    f_item->n_calls = 0;
+
+    return f_item;
 }
 
 
-uint16_t find_fn_pos (char* id, struct sym_table* fnid_map)
+struct fnid_item* find_fnid (char* id, struct sym_table* fnid_map)
 {
     int i = hash_id(id, fnid_map->size);
     int stop = i;
     struct fnid_item* f_item = &fnid_map->fn_info[i];
 
     do {
-        if (!strcmp(f_item->key, id)) return f_item->pos;
-        if (++i == fnid_map->size) i = 0;
+        if (f_item->key != NULL && !strcmp(f_item->key, id)) 
+            return f_item;
+        if (++i == fnid_map->size) 
+            i = 0;
         f_item = &fnid_map->fn_info[i];
     } while ( i != stop && f_item->is_reserved );
 
-    return 0; // unreachable -> semantic analyzer should guarantee that functions are defined (temp fix to comply with return type).
+    return NULL;
 }
 
+
+void insert_called_pos (char* pos, struct fnid_item* fn) 
+{
+    if (fn->n_calls == fn->limit)
+        fn->called_positions = realloc(fn->called_positions, sizeof(char*) * (fn->limit *= 2));
+
+    fn->called_positions[fn->n_calls++] = pos;
+}
 
 // scope info
 

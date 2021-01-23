@@ -9,7 +9,7 @@
 struct kw_item* construct_map()
 {
     struct kw_item* map = calloc(N_KEYWORDS, sizeof(struct kw_item));
-    char* reserved_kw[N_KEYWORDS] = {"int", "long", "void", "or", "and", "if", "else", "output", "return", "while", "instructn", "for", "main"};
+    char* reserved_kw[N_KEYWORDS] = {"int", "long", "void", "or", "and", "if", "else", "output", "return", "while", "func", "for", "main"};
     
     int e, i;
     for (e = 22, i = 0; i < N_KEYWORDS; e++, i++) {

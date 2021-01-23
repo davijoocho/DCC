@@ -33,8 +33,12 @@ void emit_constant (void* const_v, enum token_type const_t, struct program_info*
 struct fnid_item
 {
     bool is_reserved;
+    bool is_defined;
     char* key;
     uint16_t pos;
+    int n_calls;
+    int limit;
+    char** called_positions;
 };
 
 struct sym_table
@@ -46,8 +50,10 @@ struct sym_table
 
 int hash_id (char* k, int table_size);
 void init_sym_table (struct sym_table* fnid_map);
-void insert_fnid (char* id, uint16_t offset, struct sym_table* fnid_map);
-uint16_t find_fn_pos (char* id, struct sym_table* fnid_map);
+struct fnid_item* insert_fnid (char* id, bool def_status, uint16_t offset, struct sym_table* fnid_map);
+struct fnid_item* find_fnid (char* id, struct sym_table* fnid_map);
+void insert_called_pos (char* pos, struct fnid_item* fn);
+
 
 
 // scope info

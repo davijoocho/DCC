@@ -20,7 +20,7 @@ enum token_type
     // reserved keywords
 
     INT = 22, LONG = 23, VOID = 24, OR = 25, AND = 26, 
-    IF = 27, ELSE = 28, OUTPUT = 29, RETURN = 30, WHILE = 31, INSTRUCTN = 32, FOR = 33, MAIN = 34,
+    IF = 27, ELSE = 28, OUTPUT = 29, RETURN = 30, WHILE = 31, FUNCTION = 32, FOR = 33, MAIN = 34,
 
     EOF_F = 35
 };
@@ -46,7 +46,7 @@ struct token_vector
 struct kw_item
 {
     bool is_reserved;
-    char key[10];
+    char key[7];
     enum token_type tkn_type;
 };
 
