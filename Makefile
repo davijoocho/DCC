@@ -1,9 +1,9 @@
 
-lovelace_c: lovelace.o lexer.o token.o ast.o parser.o compiler.o
-	gcc -o lovelace_c lovelace.o lexer.o token.o ast.o parser.o compiler.o
+gossip_c: gossip.o lexer.o token.o ast.o parser.o compiler.o
+	gcc -o gossip_c gossip.o lexer.o token.o ast.o parser.o compiler.o
 
-lovelace.o: ./src/lovelace.c
-	gcc -c -I./include ./src/lovelace.c
+gossip.o: ./src/gossip.c
+	gcc -c -I./include ./src/gossip.c
 
 lexer.o: ./src/lexer.c ./include/lexer.h
 	gcc -c -I./include ./src/lexer.c
