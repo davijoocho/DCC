@@ -1,9 +1,9 @@
-# Lovelace Programming Language
+# Gossip Programming Language
 
 <h2> About </h2>
 <p>
-   <strong> Lovelace/ LovLang </strong> is a statically-typed high level programming language. The source code (.lov) is compiled into byte-code (.lovc) by the 
-   <strong> Lovelace Compiler </strong>, and the resulting instructions are interpreted by the <strong> Lovelace Virtual Machine </strong>.
+   <strong> Gossip </strong> is a statically-typed high level programming language. The source code (.gsp) is compiled into byte-code (.gspc) by the 
+   <strong> Gossip Compiler </strong>, and the resulting instructions are interpreted by the <strong> Gossip Virtual Machine </strong>.
 </p>
 
 <h2> Syntax </h2>
