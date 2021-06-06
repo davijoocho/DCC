@@ -116,7 +116,7 @@
                                                                stmt->type = WHILE_STMT
 
 #define INIT_IF_STMT(stmt, tokens, scope) struct if_stmt* _if = malloc(sizeof(struct if_stmt)); \
-                                                         _if->cond = parse_expr(tokens, 0); \ 
+                                                         _if->cond = parse_expr(tokens, 0); \
                                                          _if->body = parse_stmt(tokens, scope + 4); \
                                                          _if->elifs = malloc(sizeof(struct elif_stmt*) * 2); \
                                                          _if->_else = NULL; \

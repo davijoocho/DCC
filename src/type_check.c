@@ -166,7 +166,7 @@ void type_check_expr(struct local_symtab* local_symtab, struct stmt** global_sym
                     type_check_operands(expr);
                     expr->eval_to = BIN_LEFT(expr)->eval_to;   // abritrary 
                 } else {  // invalid types (arithmetic: +, -, *, /)
-                    printf("COMPILATION ERROR (LINE %d): invalid operand types.", expr->op->line);
+                    printf("COMPILATION ERROR (LINE %d): invalid operand types.", expr->binary->op->line);
                     exit(0);
                 }
 
@@ -176,7 +176,7 @@ void type_check_expr(struct local_symtab* local_symtab, struct stmt** global_sym
                     type_check_operands(expr);
                     expr->eval_to = BIN_LEFT(expr)->eval_to;    // arbritrary
                 } else {  // invalid types (integral: <<, >>, |, &, %)
-                    printf("COMPILATION ERROR (LINE %d): invalid operand types.", expr->op->line);
+                    printf("COMPILATION ERROR (LINE %d): invalid operand types.", expr->binary->op->line);
                     exit(0);
                 }
 
@@ -186,7 +186,7 @@ void type_check_expr(struct local_symtab* local_symtab, struct stmt** global_sym
                     type_check_operands(expr);
                     expr->eval_to = BOOL; 
                 } else {  // invalid types (comparison: <, >, <=, >=)
-                    printf("COMPILATION ERROR (LINE %d): invalid operand types.", expr->op->line);
+                    printf("COMPILATION ERROR (LINE %d): invalid operand types.", expr->binary->op->line);
                     exit(0);
                 }
 
@@ -195,7 +195,7 @@ void type_check_expr(struct local_symtab* local_symtab, struct stmt** global_sym
                 if (BOOLEAN(BIN_LEFT(expr)) && BOOLEAN(BIN_RIGHT(expr))) {
                     expr->eval_to = BOOL; 
                 } else {  // invalid types (connective: and or)
-                    printf("COMPILATION ERROR (LINE %d): invalid operand types.", expr->op->line);
+                    printf("COMPILATION ERROR (LINE %d): invalid operand types.", expr->binary->op->line);
                     exit(0);
                 }
 
@@ -207,7 +207,7 @@ void type_check_expr(struct local_symtab* local_symtab, struct stmt** global_sym
                     type_check_operands(expr);
                     expr->eval_to = BOOL;
                 } else {  // invalid types (equality: is isnt)
-                    printf("COMPILATION ERROR (LINE %d): invalid operand types.", expr->op->line);
+                    printf("COMPILATION ERROR (LINE %d): invalid operand types.", expr->binary->op->line);
                     exit(0);
                 }
         
@@ -219,11 +219,11 @@ void type_check_expr(struct local_symtab* local_symtab, struct stmt** global_sym
                         expr->indirect = BIN_LEFT(expr)->indirect - 1;
                         expr->struct_id = BIN_LEFT(expr)->struct_id;
                     } else {
-                        printf("COMPILATION ERROR (LINE %d): index is not of type integral.", expr->op->line);
+                        printf("COMPILATION ERROR (LINE %d): index is not of type integral.", expr->binary->op->line);
                         exit(0);
                     }
                 } else {
-                    printf("COMPILATION ERROR (LINE %d): attempting to access index of non-array type.", expr->op->line);
+                    printf("COMPILATION ERROR (LINE %d): attempting to access index of non-array type.", expr->binary->op->line);
                     exit(0);
                 }
 
@@ -231,6 +231,7 @@ void type_check_expr(struct local_symtab* local_symtab, struct stmt** global_sym
                 if (VALID_STRUCT(BIN_LEFT(expr))) {
                     if (IDENTIFIER(BIN_RIGHT(expr))) {
                         struct stmt* defstruct = find_global_sym(global_symtab, BIN_LEFT(expr)->struct_id, program->n * 2);
+
                         for (int i = 0; i < N_FIELDS(defstruct); i++) {
                             struct stmt* field = GET_FIELD(defstruct, i);
                             if (strcmp(DECL_ID(field), VAR_ID(BIN_RIGHT(expr)))) {
@@ -244,15 +245,15 @@ void type_check_expr(struct local_symtab* local_symtab, struct stmt** global_sym
                         }
 
                         printf("COMPILATION ERROR (LINE %d): field %s does not exist in struct %s.", 
-                                expr->op->line, VAR_ID(BIN_RIGHT(expr)), BIN_LEFT(expr)->struct_id);
+                                expr->binary->op->line, VAR_ID(BIN_RIGHT(expr)), BIN_LEFT(expr)->struct_id);
                         exit(0);
 
                     } else {
-                        printf("COMPILATION ERROR (LINE %d): attempting to access struct with invalid field operand.", expr->op->line);
+                        printf("COMPILATION ERROR (LINE %d): attempting to access struct with invalid field operand.", expr->binary->op->line);
                         exit(0);
                     }
                 } else {
-                    printf("COMPILATION ERROR (LINE %d): attempting to access field of non-struct type.", expr->op->line);
+                    printf("COMPILATION ERROR (LINE %d): attempting to access field of non-struct type.", expr->binary->op->line);
                     exit(0);
                 }
             }
@@ -265,6 +266,7 @@ void type_check_expr(struct local_symtab* local_symtab, struct stmt** global_sym
             // MINUS
             // ALLOCATE
         case CALL:
+            break;
 
 
 
@@ -279,11 +281,11 @@ void type_check_expr(struct local_symtab* local_symtab, struct stmt** global_sym
             if (expr->eval_to == STRUCT_ID) {
                 expr->struct_id = DECL_TYPE_ID(decl);
             }
-            expr->indirect = decl->indirect;
+            expr->indirect = DECL_INDIRECT(decl);
         }
             break;
         case LITERAL:
-            switch (GET_LITERAL_TYPE(expr)) {
+            switch (LITERAL_TYPE(expr)) {
                 case CHARACTER: expr->eval_to = C8; break;
                 case INTEGER: expr->eval_to = I32; break;
                 case LONG: expr->eval_to = I64; break;
@@ -357,9 +359,9 @@ void type_check(struct program* program) {
     for (int i = 0; i < program->n; i++) {
         if (program->stmts[i]->type == FUNCTION_DEF ||
                 program->stmts[i]->type == PROCEDURE_DEF) {
-            struct local_symtab;
+            struct local_symtab local_symtab;
             INIT_LOCAL_SYMTAB(local_symtab, program->stmts[i]);
-            struct scope;
+            struct scope scope;
             INIT_SCOPE(scope);
 
             type_check_stmt(program->stmts[i], &local_symtab, global_symtab, &scope, program);

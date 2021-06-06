@@ -15,7 +15,7 @@
 #define DECL_ID(stmt) stmt->var_decl->id->id
 
 #define ENTER_SCOPE(scope) scope->depth++
-#define EXIT_SCOPE(scope, symtab) scope->depth-- 
+#define EXIT_SCOPE(scope) scope->depth-- 
 
 
 // TYPE_CHECK_STMT()
@@ -27,18 +27,20 @@
                                                     memset(symtab, 0, sizeof(struct stmt*) * program->n * 2); \
                                                     build_global_symtab(symtab, program)
 
-#define INIT_LOCAL_SYMTAB(symtab, stmt)  symtab->capacity = 32; \
-                                                      symtab->n_decls = 0; \
-                                                      symtab->decls = malloc(sizeof(struct stmt*) * 32); \
-                                                      symtab->func = stmt
-#define INIT_SCOPE(scope) scope->depth = 0; \
-                                         scope->n_locals = 0; \
-                                         scope->capacity = 32; \
-                                         scope->locals = malloc(sizeof(struct locals) * 32)
-#define FREE(symtab, scope) free(symtab->decls); \
-                                free(scope->locals)
+#define INIT_LOCAL_SYMTAB(symtab, fn)  symtab.capacity = 32; \
+                                                      symtab.n_decls = 0; \
+                                                      symtab.decls = malloc(sizeof(struct stmt*) * 32); \
+                                                      symtab.func = fn
+#define INIT_SCOPE(scope) scope.depth = 0; \
+                                         scope.n_locals = 0; \
+                                         scope.capacity = 32; \
+                                         scope.locals = malloc(sizeof(struct locals) * 32)
+
+#define FREE(symtab, scope) free(symtab.decls); \
+                                free(scope.locals)
 
 // TYPE_CHECK_EXPR()
+#define BIN_OP(expr) expr->binary->op->type
 #define ARITHMETIC(expr) (BIN_OP(expr) == PLUS || BIN_OP(expr) == MINUS \
                                 || BIN_OP(expr) == DIVIDE || BIN_OP(expr) == STAR) 
 #define COMPARISON(expr) (BIN_OP(expr) == LT || BIN_OP(expr) == GT || BIN_OP(expr) == LTEQ || BIN_OP(expr) == GTEQ)
@@ -55,12 +57,10 @@
 #define VALID_STRUCT(expr) (expr->eval_to == STRUCT_ID && expr->indirect == 0)
 #define IDENTIFIER(expr)  (expr->type == VARIABLE)
 #define VALID_ARITHMETIC_TYPE(expr)  (expr->indirect == 0 && expr->eval_to != STRUCT_ID && expr->eval_to != BOOL)
-#define VALID_INTEGRAL_TYPE(expr)   (expr->indirect == 0 && (expr->eval_to == I32 || expr->eval_to = I64))
+#define VALID_INTEGRAL_TYPE(expr)   (expr->indirect == 0 && (expr->eval_to == I32 || expr->eval_to == I64))
 #define NOT_EQUAL_TYPES(lexpr, rexpr) lexpr->eval_to != rexpr->eval_to
 
 
-
-#define BIN_OP(expr) expr->binary->op->type
 #define BIN_LEFT(expr) expr->binary->left
 #define BIN_RIGHT(expr) expr->binary->right
 #define VAR_ID(expr) expr->variable->id->id
@@ -70,6 +70,7 @@
 #define LITERAL_TYPE(expr) expr->literal->value->type
 #define N_FIELDS(expr) expr->defstruct->n_fields
 #define GET_FIELD(expr, idx) expr->defstruct->fields[idx] 
+#define LITERAL_TYPE(expr) expr->literal->value->type
 
 struct locals {
     int depth;
@@ -91,9 +92,29 @@ struct local_symtab {
     int capacity;
 };
 
-void type_check(struct program* program);
-void insert_global_sym(struct stmt** global_symtab, struct stmt* sym, uint64_t idx, int len);
-void build_global_symtab(struct stmt** global_symtab, struct program* program);
 uint64_t compute_hash(char* id);
+void insert_global_sym(struct stmt** global_symtab, struct stmt* sym, uint64_t idx, int max);
+void build_global_symtab(struct stmt** global_symtab, struct program* program);
+struct stmt* find_global_sym(struct stmt** symtab, char* id, int capacity);
+
+
+struct stmt* find_local_sym(struct local_symtab* symtab, char* id);
+void delete_local_sym(struct local_symtab* symtab, char* id);
+void grow_local_symtab(struct local_symtab* symtab, int new_capacity);
+void insert_local(struct local_symtab* symtab, struct stmt* decl);
+
+void clean_up_scope(struct scope* scope, struct local_symtab* symtab);
+void push_local(struct scope* scope, char* id, int depth);
+
+struct expr* widen(struct expr* expr_to_widen, enum token_type widen_to);
+void type_check_operands(struct expr* expr);
+void type_check_expr(struct local_symtab* local_symtab, struct stmt** global_symtab, 
+        struct expr* expr, struct program* program);
+void type_check_stmt(struct stmt* stmt, struct local_symtab* local_symtab, 
+        struct stmt** global_symtab, struct scope* scope, struct program* program);
+void type_check(struct program* program);
+
+
+
 
 #endif
