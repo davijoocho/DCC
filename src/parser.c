@@ -1,384 +1,288 @@
+#include <stdlib.h>
 #include <stdio.h>
-#include "ast.h"
 #include "parser.h"
 
-struct stmt_vector* parse (struct token_vector* tkn_vec)
-{
-    struct stmt_vector* program = construct_stmt_vector();
+struct program* parse(struct tokens* toks) {
+   struct program* prog = malloc(sizeof(struct program)); 
+   INIT_PROGRAM(prog);
 
-    while (!match_op(tkn_vec, 1, EOF_F))
-        insert_stmt(parse_decl(tkn_vec), program);
+   while (NOT_EOF(toks)) {
+       if (NEXT_TOKEN(toks) == SPACES || NEXT_TOKEN(toks) == NEW_LINE) {
+           CONSUME_TOKEN(toks);
+       } else {
+           if (OVERFLOW(prog)) {
+               GROW_MEMORY(prog);
+           }
+           //printf("parse()\n");
+           ADD_STATEMENT(prog, parse_stmt(toks, 0));
+       }
+   }
 
-    return program;
-}
+   if (UNUSED_MEMORY_EXISTS(prog)) {
+       SHRINK_MEMORY(prog);
+   }
 
-struct stmt* parse_decl (struct token_vector* tkn_vec)
-{
-    // fut_ref -> error handle: catch exception if error occurred during descent (synchronize, setjmp, longjmp)
-    if (match_op(tkn_vec, 2, INT, LONG) && ++tkn_vec->pos) 
-        return parse_var_decl(tkn_vec);
-
-    return parse_stmt(tkn_vec);
-}
-
-struct stmt* parse_var_decl (struct token_vector* tkn_vec)
-{
-    struct token* var_type = &tkn_vec->vec[tkn_vec->pos-1];
-    struct token* var_id = &tkn_vec->vec[tkn_vec->pos++];   // fut_ref -> error handle: if not id (expect)
-    struct expr* init_v = NULL;
-
-    if (match_op(tkn_vec, 1, EQUAL) && tkn_vec->pos++) 
-        init_v = parse_expr(tkn_vec);
-    tkn_vec->pos++; // fut_ref -> error handle: if not semicolon (expect);
-
-    struct var_decl* var_stmt = malloc(sizeof(struct var_decl));
-    var_stmt->info = var_type; var_stmt->id = var_id; var_stmt->value = init_v;
-
-    return construct_stmt(VAR_DECL, var_stmt);
+   return prog;
 }
 
 
-struct stmt* parse_stmt (struct token_vector* tkn_vec)
-{
-    switch (tkn_vec->vec[tkn_vec->pos++].type) {
-        case RETURN: return parse_return_stmt(tkn_vec);
-        case WHILE: return parse_while_stmt(tkn_vec);
-        case IF: return parse_if_stmt(tkn_vec); 
-        case LEFT_BRACE: return parse_block_stmt(tkn_vec); 
-        case FUNCTION: return parse_function_stmt(tkn_vec); 
-        case OUTPUT: return parse_output_stmt(tkn_vec); 
-        case IDENTIFIER: return parse_assign_stmt(tkn_vec);
-        default:   // fut_ref -> error handle
-            break;
-    }
-
-    return NULL;
-}
-
-
-struct stmt* parse_return_stmt (struct token_vector* tkn_vec)
-{
-    struct return_stmt* ret_stmt = malloc(sizeof(struct return_stmt));
-    ret_stmt->ret_v = NULL;
-
-    if (!match_op(tkn_vec, 1, SEMICOLON))
-        ret_stmt->ret_v = parse_expr(tkn_vec);
-    tkn_vec->pos++;      // fut_ref -> error handle: expect semicolon.
-
-    return construct_stmt(RETURN_STMT, ret_stmt);
-}
-
-struct stmt* parse_block_stmt (struct token_vector* tkn_vec)
-{
-    struct stmt_vector* b_stmts = construct_stmt_vector();
-
-    while (!match_op(tkn_vec, 1, RIGHT_BRACE))   // fut_ref -> error handle: check for EOF.
-        insert_stmt( parse_decl(tkn_vec) ,b_stmts);
-    
-    tkn_vec->pos++;     // fut_ref -> error handle: expect right brace.
-
-    struct block_stmt* block = malloc(sizeof(struct block_stmt));
-    block->stmts = b_stmts;
-
-    return construct_stmt(BLOCK, block);
-}
-
-struct stmt* parse_while_stmt (struct token_vector* tkn_vec)
-{
-    struct while_stmt* wh_stmt = malloc(sizeof(struct while_stmt));
-    
-    tkn_vec->pos++;    // fut_ref -> error handle: expect left paren.
-    wh_stmt->cond = parse_expr(tkn_vec);
-    tkn_vec->pos++;    // fut_ref -> error handle: expect right paren.
-
-    wh_stmt->body = parse_stmt(tkn_vec);
-
-    return construct_stmt(WHILE_STMT, wh_stmt);
-}
-
-
-struct stmt* parse_if_stmt (struct token_vector* tkn_vec)
-{
-    struct if_stmt* stmt = malloc(sizeof(struct if_stmt));
-    
-    tkn_vec->pos++;    // fut_ref -> error handle: expect left paren.
-    stmt->cond = parse_expr(tkn_vec);
-    tkn_vec->pos++;    // fut_ref -> error handle: expect right paren.
-
-    stmt->then_branch = parse_stmt(tkn_vec);
-    stmt->else_branch = NULL;
-
-    if (match_op(tkn_vec, 1, ELSE) && tkn_vec->pos++)
-        stmt->else_branch = parse_stmt(tkn_vec);
-
-    return construct_stmt(IF_STMT, stmt);
-}
-
-struct stmt* parse_output_stmt (struct token_vector* tkn_vec)
-{
-    struct output_stmt* out_stmt = malloc(sizeof(struct output_stmt));
-
-    tkn_vec->pos++;    // fut_ref -> error handle: expect left paren.
-    out_stmt->output_v = parse_expr(tkn_vec);
-    tkn_vec->pos++;    // fut_ref -> error handle: expect right paren.
-    tkn_vec->pos++;    // fut_ref -> error handle: expect semicolon.
-
-    return construct_stmt(OUTPUT_STMT, out_stmt);
-}
-
-struct stmt* parse_assign_stmt (struct token_vector* tkn_vec)
-{
-    struct assign_stmt* eq_stmt = malloc(sizeof(struct assign_stmt));
-
-    eq_stmt->id = &tkn_vec->vec[tkn_vec->pos-1];
-    tkn_vec->pos++;    // fut_ref -> error handle: expect an assignment '=' operator.
-
-    eq_stmt->value = parse_expr(tkn_vec);
-    tkn_vec->pos++;    // fut_ref -> error handle: expect a semicolon.
-
-    return construct_stmt(ASSIGN, eq_stmt);
-}
-
-struct stmt* parse_function_stmt (struct token_vector* tkn_vec)
-{
-    struct function_stmt* fn = malloc(sizeof(struct function_stmt));
-    fn->id = &tkn_vec->vec[tkn_vec->pos++];
-
-    tkn_vec->pos++;  // fut_ref -> error handle: expect a left paren.
-
-    if (!match_op(tkn_vec, 1, RIGHT_PAREN)) {
-        fn->params = construct_param_vector();
-        do {
-            struct var_decl* param = malloc(sizeof(struct var_decl));
-            param->info = &tkn_vec->vec[tkn_vec->pos++];
-            param->id = &tkn_vec->vec[tkn_vec->pos++];
-            param->value = NULL;
-
-            insert_param( construct_stmt(VAR_DECL, param) , fn->params);
-        } while (match_op(tkn_vec, 1, COMMA) && tkn_vec->pos++); 
-    } else {
-        fn->params = NULL;
-    }
-
-
-    tkn_vec->pos++;   // fut_ref -> error handle: expect a RIGHT_PAREN.
-    tkn_vec->pos++;   // fut_ref -> error handle: expect an ARROW '=>'.
-
-    fn->info = &tkn_vec->vec[tkn_vec->pos++];   // fut_ref -> error handle: expect a function return type 
-    fn->body = parse_stmt(tkn_vec);
-
-    return construct_stmt(FUNCTION_STMT, fn);
-}
-
-
-
-// fut_ref -> parser functions for binary expressions are repetitive 
-// fut_ref -> parse by precedence by maintaining precedence table and function pointers (no need for multiple functions).
-
-struct expr* parse_expr (struct token_vector* tkn_vec) { 
-    return parse_or_expr(tkn_vec); 
-}
-
-struct expr* parse_or_expr (struct token_vector* tkn_vec) 
-{
-    struct expr* ast = parse_and_expr(tkn_vec);
-
-    while (match_op(tkn_vec, 1, OR))
-        ast = parse_binary_expr(ast, tkn_vec, &parse_and_expr);
-    return ast;
-}
-
-struct expr* parse_and_expr (struct token_vector* tkn_vec)
-{
-    struct expr* ast = parse_equality_expr(tkn_vec);
-
-    while (match_op(tkn_vec, 1, AND))
-        ast = parse_binary_expr(ast, tkn_vec, &parse_equality_expr);
-    return ast;
-}
-
-struct expr* parse_equality_expr (struct token_vector* tkn_vec) 
-{
-    struct expr* ast = parse_comparison_expr(tkn_vec);
-    
-    while (match_op(tkn_vec, 2, BANG_EQUAL, EQUAL_EQUAL))
-        ast = parse_binary_expr(ast, tkn_vec, &parse_comparison_expr);
-
-    return ast;
-}
-
-struct expr* parse_comparison_expr (struct token_vector* tkn_vec)
-{
-    struct expr* ast = parse_term_expr(tkn_vec);
-    
-    while (match_op(tkn_vec, 4, LESS_EQUAL, LESS, GREATER, GREATER_EQUAL))
-        ast = parse_binary_expr(ast, tkn_vec, &parse_term_expr);
-
-    return ast;
-}
-
-struct expr* parse_term_expr (struct token_vector* tkn_vec)
-{
-    struct expr* ast = parse_factor_expr(tkn_vec);
-
-    while (match_op(tkn_vec, 2, PLUS, MINUS))
-        ast = parse_binary_expr(ast, tkn_vec, &parse_factor_expr);
-
-    return ast;
-}
-
-struct expr* parse_factor_expr (struct token_vector* tkn_vec)
-{
-    struct expr* ast = parse_unary_expr(tkn_vec);
-
-    while(match_op(tkn_vec, 2, ASTERISK, SLASH))
-        ast = parse_binary_expr(ast, tkn_vec, &parse_unary_expr);
-
-    return ast;
-}
-
-
-struct expr* parse_unary_expr (struct token_vector* tkn_vec)
-{
-    if (match_op(tkn_vec, 2, BANG, MINUS)) {
-        struct token* operator = &tkn_vec->vec[tkn_vec->pos++];
-        struct expr* r_ast = parse_unary_expr(tkn_vec);
-
-        struct unary_expr* un_expr = malloc(sizeof(struct unary_expr));
-        un_expr->op = operator;  un_expr->right = r_ast;
-
-        struct expr* parsed_expr = malloc(sizeof(struct expr));
-        parsed_expr->type = UNARY;  parsed_expr->unary = un_expr;
-
-        return parsed_expr;
-    } 
-
-    return parse_call_expr(tkn_vec);
-}
-
-
-struct expr* parse_call_expr (struct token_vector* tkn_vec)
-{
-    struct expr* ast = parse_primary_expr(tkn_vec);
-
-    if (match_op(tkn_vec, 1, LEFT_PAREN) && tkn_vec->pos++) {
-        struct arg_vector* args_v = construct_arg_vector();
-
-        if (!match_op(tkn_vec, 1, RIGHT_PAREN))
-            do 
-                insert_arg( parse_expr(tkn_vec), args_v );        // fut_ref -> add error handling for exceeding max args.
-            while (tkn_vec->vec[tkn_vec->pos].type == COMMA && tkn_vec->pos++);
-
-        tkn_vec->pos++; // fut_ref-> add error handling for expecting right parenthesis (expect).
-        
-        struct call_expr* fn_c = malloc(sizeof(struct call_expr));
-        fn_c->id = ast;  fn_c->args = args_v;
-
-        struct expr* parsed_expr = malloc(sizeof(struct expr));
-        parsed_expr->type = CALL;  parsed_expr->call = fn_c;
-
-        ast = parsed_expr;
-    }
-
-    return ast;
-}
-
-struct expr* parse_primary_expr (struct token_vector* tkn_vec)
-{
-    struct expr* p_expr = malloc(sizeof(struct expr));
-
-    switch (tkn_vec->vec[tkn_vec->pos].type) {
-        case LONG_INTEGER: {
-            struct literal_expr* lit_expr = malloc(sizeof(struct literal_expr));
-            lit_expr->info = &tkn_vec->vec[tkn_vec->pos++];
-            p_expr->type = LITERAL;
-            p_expr->literal = lit_expr;
-            return p_expr;
-        } 
-        case INTEGER: {
-            struct literal_expr* lit_expr = malloc(sizeof(struct literal_expr));
-            lit_expr->info = &tkn_vec->vec[tkn_vec->pos++];
-            p_expr->type = LITERAL;
-            p_expr->literal = lit_expr;
-            return p_expr;
+struct stmt* parse_stmt(struct tokens* toks, int scope) {
+    struct stmt* stmt = malloc(sizeof(struct stmt));
+
+    if (NEXT_TOKEN(toks) == IDENTIFIER) {
+        if (LOOK_AHEAD(toks) == LEFT_PAREN) {
+            //printf("parse_stmt() -> PROCEDURE CALL\n");
+            INIT_PROCEDURE_CALL(stmt, toks);
+
+            while (NEXT_TOKEN(toks) != RIGHT_PAREN) {
+                INSERT_ARG(stmt->proc, parse_expr(toks, 0));
+                if (NEXT_TOKEN(toks) == COMMA) {
+                    CONSUME_TOKEN(toks); // expect ','
+                }
+            }
+            CONSUME_TOKEN(toks);  // expect ')'
+            CONSUME_TOKEN(toks);  // expect '\n'
+
+            if (NOT_MAX_ARGS(stmt->proc)) {
+                SHRINK_ARGS(stmt->proc);
+            }
+
+        } else if (LOOK_AHEAD(toks) == ASSIGN) {
+            //printf("parse_stmt() -> ASSIGN\n");
+            INIT_ASSIGN_STMT(stmt, toks);
+            CONSUME_TOKEN(toks);   // expect '\n'
         }
 
-        case IDENTIFIER: {
-            struct variable_expr* var_expr = malloc(sizeof(struct variable_expr));
-            var_expr->id = &tkn_vec->vec[tkn_vec->pos++];
-            p_expr->type = VARIABLE;
-            p_expr->variable = var_expr;
-            return p_expr;
+    } else if (NEXT_TOKEN_IS_TYPE(toks)) {
+        //printf("parse_stmt() -> VAR DECL\n");
+        INIT_VAR_DECL(stmt, toks, scope);
+        if (scope != 0) {            // NOT FUNCTION PARAMETER
+            CONSUME_TOKEN(toks);   // expect '\n'
         }
-        case LEFT_PAREN: {
-            struct paren* group = malloc(sizeof(struct paren));
-            tkn_vec->pos++;
-            group->expr = parse_expr( tkn_vec );
-            p_expr->type = PAREN;
-            p_expr->grouping = group;
-            tkn_vec->pos++; // fut_ref -> add error handle for unmatched parenthesis (expect)
-            return p_expr;
+
+    } else if (NEXT_TOKEN(toks) == RETURN) {
+        //printf("print_stmt() -> RETURN\n");
+        INIT_RETURN_STMT(stmt, toks);
+        CONSUME_TOKEN(toks);   // expect '\n'
+
+    } else if (NEXT_TOKEN(toks) == COLON) {
+        //printf("print_stmt() -> BLOCK scope %d\n", scope / 4);
+        CONSUME_TOKEN(toks);   // expect ':'
+        CONSUME_TOKEN(toks);   // expect '\n'
+        INIT_BLOCK_STMT(stmt, toks);
+        int blk_capacity = 64;
+
+        while (NOT_EOF(toks) && (NEXT_TOKEN(toks) == SPACES || NEXT_TOKEN(toks) == NEW_LINE)) {
+            if (NEXT_TOKEN(toks) == NEW_LINE) {
+                CONSUME_TOKEN(toks);  // expect '\n'
+            } else  {
+                if (LOOK_AHEAD(toks) == NEW_LINE) { 
+                    SKIP_LINE(toks);
+                } else {
+                    if (SPACE_INDENT(toks) % 4 != 0) {
+                        // error
+                    } else {
+                        if (SPACE_INDENT(toks) > scope) {
+                            // error
+                        } else if (SPACE_INDENT(toks) == scope) {
+                            CONSUME_TOKEN(toks);  // expect ' '
+                            if (BLOCK_OVERFLOW(stmt->block, blk_capacity)) {
+                                GROW_BLOCK(stmt->block, blk_capacity);
+                            }
+                            //printf("print_stmt() -> BLOCK scope %d stmt# %d\n", scope / 4, stmt->block->n_stmts);
+                            INSERT_STMT(stmt->block, parse_stmt(toks, scope));
+
+                        } else if (SPACE_INDENT(toks) < scope) {
+                            break;
+                        }
+                    }
+                }
+            }
         }
-        default:
-            break; // fut_ref -> add error handle for expecting an expression.
+
+        if (NOT_MAX_CAPACITY(stmt->block, blk_capacity)) {
+            SHRINK_BLOCK(stmt->block);
+        }
+
+    } else if (NEXT_TOKEN(toks) == FUNCTION) { 
+        //printf("parse_stmt() -> FUNCTION_DEF %s\n", toks->vec[toks->i + 1]->id);
+        CONSUME_TOKEN(toks);  // expect 'fn'
+        INIT_FUNCTION_DEF(stmt, toks);
+        CONSUME_TOKEN(toks);  // expect '('
+
+        while (NEXT_TOKEN(toks) != RIGHT_PAREN) {
+            //printf("parse_stmt() -> FUNCTION_DEF -> PARAM #%d\n", stmt->defun->n_params);
+            INSERT_PARAM(stmt->defun, parse_stmt(toks, 0));
+            if (NEXT_TOKEN(toks) == COMMA) {
+                CONSUME_TOKEN(toks); // expect ','
+            }
+        }
+        CONSUME_TOKEN(toks); // expect ')'
+        CONSUME_TOKEN(toks); // expect '->'
+        INSERT_RETURN_TYPE(stmt->defun, CONSUME_TOKEN(toks));  // expect 'i32', 'i64', etc
+
+        if (NOT_MAX_PARAMS(stmt->defun)) {
+            SHRINK(stmt->defun);
+        }
+        INSERT_DEFINITION(stmt->defun, parse_stmt(toks, scope + 4));
+
+    } else if (NEXT_TOKEN(toks) == PROCEDURE) {
+        //printf("parse_stmt() -> PROCEDURE DECL\n");
+        CONSUME_TOKEN(toks);   // expect 'proc'
+        INIT_PROCEDURE_DEF(stmt, toks);
+        CONSUME_TOKEN(toks); // expect '('
+
+        while (NEXT_TOKEN(toks) != RIGHT_PAREN) {
+            INSERT_PARAM(stmt->defproc, parse_stmt(toks, 0));
+            if (NEXT_TOKEN(toks) == COMMA) {
+                CONSUME_TOKEN(toks); // expect ','
+            }
+        }
+        CONSUME_TOKEN(toks); // expect ')'
+
+        if (NOT_MAX_PARAMS(stmt->defproc)) {
+            SHRINK(stmt->defproc);
+        }
+        INSERT_DEFINITION(stmt->defproc, parse_stmt(toks, scope + 4));
+
+    } else if (NEXT_TOKEN(toks) == IF) {
+        //printf("parse_stmt() -> IF\n");
+        CONSUME_TOKEN(toks);  // expect 'if'
+        INIT_IF_STMT(stmt, toks, scope);
+        int brnch_capacity = 2;
+
+        while (NEXT_TOKEN(toks) == SPACES && SPACE_INDENT(toks) == scope 
+                && (LOOK_AHEAD(toks) == ELSE || LOOK_AHEAD(toks) == ELIF)) {
+            //printf("parse_if_body\n");
+            CONSUME_TOKEN(toks); // expect ' '
+            if (BRANCH_OVERFLOW(stmt->if_stmt, brnch_capacity)) {
+                GROW_BRANCHES(stmt->if_stmt, brnch_capacity);
+            }
+
+            if (CONSUME_TOKEN(toks)->type == ELSE) {
+                //printf("parse_stmt() -> ELSE\n");
+                INIT_ELSE_STMT(stmt->if_stmt, toks, scope);
+            } else {
+                //printf("parse_stmt() -> ELIF\n");
+                INIT_ELIF_STMT(stmt->if_stmt, toks, scope);
+            }
+        }
+
+        if (NOT_MAX_BRANCHES(stmt->if_stmt, brnch_capacity)) {
+            SHRINK_BRANCHES(stmt->if_stmt);
+        }
+
+    } else if (NEXT_TOKEN(toks) == WHILE) {
+        //printf("parse_stmt() -> WHILE\n");
+        CONSUME_TOKEN(toks); // expect 'while'
+        INIT_WHILE_STMT(stmt, toks, scope);
+    } else if (NEXT_TOKEN(toks) == STRUCT) {
+        //printf("parse_stmt() -> STRUCT\n");
+        CONSUME_TOKEN(toks);  // expect 'struct'
+        INIT_STRUCT_DEF(stmt, toks); 
+        CONSUME_TOKEN(toks);  // expect ':'
+        CONSUME_TOKEN(toks);  // expect '\n'
+
+        while (NOT_EOF(toks) && NEXT_TOKEN(toks) == SPACES) {
+            if (LOOK_AHEAD(toks) == NEW_LINE) {
+                SKIP_LINE(toks);
+            } else {
+                if (SPACE_INDENT(toks) == 4) {
+                    CONSUME_TOKEN(toks);  // expect ' '
+                    INSERT_FIELD(stmt->defstruct, parse_stmt(toks, 0));
+                    CONSUME_TOKEN(toks);  // expect '\n'
+                }
+                // error -> indentation < 4 or > 4
+            }
+        }
+
+        if (NOT_MAX_FIELD(stmt->defstruct)) {
+            SHRINK_FIELD(stmt->defstruct);
+        }
     }
 
-    return NULL;
+    return stmt;
 }
 
 
-struct expr* construct_binary_expr (struct expr* left_expr, struct token* op_tkn, struct expr* right_expr) 
-{
-    struct binary_expr* bi_expr = malloc(sizeof(struct binary_expr));
-    bi_expr->left = left_expr;   
-    bi_expr->op = op_tkn;   
-    bi_expr->right = right_expr;
+struct expr* parse_nud(struct tokens* toks, struct token* op) {
+    struct expr* expr = malloc(sizeof(struct expr));
 
-    struct expr* parsed_expr = malloc(sizeof(struct expr));
-    parsed_expr->type = BINARY;  
-    parsed_expr->binary = bi_expr;
-    return parsed_expr;
-}
+    if (IS_LITERAL(op)) {
+        //printf("parse_nud() -> LITERAL\n");
+        INIT_LITERAL_EXPR(expr, op);
 
-struct expr* parse_binary_expr (struct expr* ast, struct token_vector* tkn_vec, 
-        struct expr* (*parse_fn)(struct token_vector*) )
-{
-    struct token* operator = &tkn_vec->vec[tkn_vec->pos++]; 
-    struct expr* r_ast = parse_fn(tkn_vec);
-    return construct_binary_expr(ast, operator, r_ast);
-}
+    } else if (IS_UNARY(op)) {
+        //printf("parse_nud() -> UNARY\n");
+        INIT_UNARY_EXPR(expr, op, parse_expr(toks, 95));   // parse access-operations
 
-struct stmt* construct_stmt (enum stmt_type tag, void* stmt)
-{
-    struct stmt* p_stmt = malloc(sizeof(struct stmt));
-    p_stmt->type = tag;
+    } else if (IS_GROUP(op)) {
+        if (NEXT_IS_PRIMITIVE_TYPE(toks)) {   // EXPLICIT CONVERSION OPERATION
+            //printf("parse_nud() -> CONVERSION\n");
+            struct token* convert_type = CONSUME_TOKEN(toks);
+            CONSUME_TOKEN(toks); // expect ')'
+            INIT_UNARY_EXPR(expr, convert_type, parse_expr(toks, 95)); // parse access-operations
 
-    switch (tag) {
-        case VAR_DECL: p_stmt->decl_stmt = (struct var_decl*)stmt; break;
-        case BLOCK: p_stmt->block_stmt = (struct block_stmt*)stmt; break;
-        case IF_STMT: p_stmt->if_stmt = (struct if_stmt*)stmt; break;
-        case WHILE_STMT: p_stmt->while_stmt = (struct while_stmt*)stmt; break;
-        case FUNCTION_STMT: p_stmt->function = (struct function_stmt*)stmt; break;
-        case RETURN_STMT: p_stmt->return_stmt = (struct return_stmt*)stmt; break;
-        case ASSIGN: p_stmt->assign_stmt = (struct assign_stmt*)stmt; break;
-        case OUTPUT_STMT: p_stmt->output_stmt = (struct output_stmt*)stmt; break;
-    } 
-    return p_stmt;
-}
+        } else {
+            //printf("parse_nud() -> GROUP\n");
+            expr = parse_expr(toks, 0);
+            CONSUME_TOKEN(toks);   // expect ')'
+        }
 
-bool match_op (struct token_vector* tkn_vec, int n, ...)
-{
+    } else if (IS_ALLOCATION(op)) {
+        //printf("parse_nud() -> ALLOCATION\n");
+        CONSUME_TOKEN(toks); // expect '('
+        INIT_UNARY_EXPR(expr, op, parse_expr(toks, 0));
+        CONSUME_TOKEN(toks); // expect ')'
 
-    int i;
-    va_list op_types;
-    va_start(op_types, n);
-    for (i=0; i<n; i++) {
-        enum token_type e = va_arg(op_types, int);
-        if (tkn_vec->vec[tkn_vec->pos].type == e) {
-            va_end(op_types);
-            return true;
+    } else if (IS_IDENTIFIER(op)) {
+        if (NEXT_TOKEN(toks) == LEFT_PAREN) {
+            //printf("parse_nud() -> CALL\n");
+            CONSUME_TOKEN(toks);      // expect '('
+            INIT_CALL_EXPR(expr, op);
+
+            while (NEXT_TOKEN(toks) != RIGHT_PAREN) {
+                //printf("parse_nud() -> CALL arg# %d\n", expr->call->n_args);
+                INSERT_ARG(expr->call, parse_expr(toks, 0));
+                if (NEXT_TOKEN(toks) == COMMA) {
+                    CONSUME_TOKEN(toks);  // expect ','
+                }
+            }
+            CONSUME_TOKEN(toks); // expect ')'
+
+            if (NOT_MAX_ARGS(expr->call)) {
+                SHRINK_ARGS(expr->call);
+            }
+
+        } else {
+            //printf("parse_nud() -> VARIABLE\n");
+            INIT_VARIABLE_EXPR(expr, op);
         }
     }
-    va_end(op_types);
-    return false;
+
+    return expr;
 }
+
+struct expr* parse_led(struct expr* left, struct tokens* toks, struct token* op) {
+    struct expr* expr = malloc(sizeof(struct expr)); 
+    INIT_BINARY_EXPR(expr, left, op, parse_expr(toks, op->lbp));
+    if (op->type == LEFT_BRACK) {
+        CONSUME_TOKEN(toks); // expect ']'
+    }
+    return expr;
+}
+
+struct expr* parse_expr(struct tokens* toks, int rbp) {
+    struct expr* left = parse_nud(toks, CONSUME_TOKEN(toks));
+
+    while (!TERMINATING_SYMBOL(toks) && rbp < OP_BINDING_POWER(toks)) {
+        left = parse_led(left, toks, CONSUME_TOKEN(toks));
+    }
+    return left;
+}
+
+
+
+
+
+
