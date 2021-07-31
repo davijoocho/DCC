@@ -1,96 +1,105 @@
 #ifndef LEXER_H
 #define LEXER_H
 
-#define N_KEYWORDS 24
-#define IS_ALPHA(c)   (('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || c == '_')
+#include <stdint.h>
+
+#define N_KEYWORDS 31
+#define KEYWORD_HASHTAB_SIZE (N_KEYWORDS * 2)
 #define IS_NUMERIC(c) ('0' <= c && c <= '9')
-#define TOKEN_OVERFLOW(tokens) tokens->n == tokens->size
-#define GROW_TOKEN_SPACE(tokens) tokens->vec = realloc(tokens->vec, sizeof(struct token*) * toks->size * 2); \
-                                               tokens->size *= 2
-#define PREV_TOKEN(tokens)  tokens->vec[tokens->n - 1]
-
-#define INIT_TOKEN(token, tok_type, binding_power, line_num)   token->type = tok_type; \
-                                                                   token->lbp = binding_power; \
-                                                                   token->line = line_num
-
-#define ASSIGN_LITERAL_VALUE(token, type, s_md) switch (type) { \
-                                        case SPACES: \
-                                            token->i32 = s_md->end - s_md->start; \
-                                            break; \
-                                        case CHARACTER: \
-                                            token->c8 = s_md->src[s_md->end]; \
-                                            s_md->end += 2; \
-                                            break; \
-                                        case INTEGER: token->i32 = atoi(s_md->src + s_md->start); break; \
-                                        case LONG: token->i64 = strtol(s_md->src + s_md->start, NULL, 10); break; \
-                                        case FLOAT: token->f32 = strtof(s_md->src + s_md->start, NULL); break; \
-                                        case DOUBLE: token->f64 = strtod(s_md->src + s_md->start, NULL); break; \
-                                        case IDENTIFIER: \
-                                            token->id = malloc(len + 1); \
-                                            strncpy(token->id, s_md->src + s_md->start, len); \
-                                            token->id[len] = '\0'; \
-                                            break; \
-                                        case STRING_LITERAL: \
-                                            token->id = malloc(len + 1); \
-                                            strncpy(token->id, s_md->src + s_md->start + 1, len); \
-                                            token->id[len] = '\0'; \
-                                            break; \
-                                        default: \
-                                            break; \
-                                    } 
+#define IS_ALPHA(c) (('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || c == '_')
+#define STRING_LEN(scan_info) (scan_info->end - scan_info->start - 2)
 
 enum token_type {
-    PLUS, STAR, MODULO, MINUS, DIVIDE, LT, GT, LTEQ, GTEQ,
-    SHIFT_R, SHIFT_L, BIT_NOT, BIT_OR, BIT_AND, AND, OR, NOT, IS, ISNT, 
 
+    // BINARY
+    LOGICAL_OR,                          
+    LOGICAL_AND,                        
+    BIT_OR, 
+    AND, 
+    IS, ISNT, 
+    LT, LTEQ, GT, GTEQ, 
+    BIT_SHIFTR, BIT_SHIFTL,  
+    PLUS, MINUS, 
+    STAR, DIVIDE, MODULO,  // 16
+
+    // UNARY/ NUD
+    LOGICAL_NOT,
+    LEFT_PAREN,   
+    // Negative    (MINUS)
+    // DEREFERENCE (STAR)
+    // Address-Of  (AND)
+
+    //CALL?
+
+    // HIGHEST PRECEDENCE
+    DOT, ARROW, LEFT_BRACK, 
+
+    RIGHT_BRACK, RIGHT_PAREN, NEW_LINE, COMMA, COLON,  // 26
+
+    // LITERALS
     CHARACTER, INTEGER, LONG, FLOAT, DOUBLE, IDENTIFIER,
-    TRUE, FALSE, STRING_LITERAL, EMPTY,
+    STRING_LITERAL, EMPTY,
 
-    BOOL, C8, I32, I64, F32, F64, STRING, STRUCT_ID,
+    RIGHT_BRACE, LEFT_BRACE,
 
-    COLON, ASSIGN, LEFT_PAREN, RIGHT_PAREN, NEW_LINE, ARROW, // NEW_LINE = 41
-    SPACES, RIGHT_BRACK, LEFT_BRACK, 
+    // TYPES
+    C8, I32, I64, F32, F64, STRING, 
 
-    ALLOCATE, 
-     
-    STRUCT, FUNCTION, PROCEDURE, COMMA,
+    FUNCTION, STRUCT, STRUCT_ID, ASSIGN, INDENT, 
+    PROCEDURE, MAIN,
 
-    IF, ELSE, ELIF, WHILE, RETURN
+    IF, ELIF, ELSE, WHILE, RETURN,
+
+    // STD LIBRARY 
+    FREE, OPEN, WRITE, READ, CLOSE, MEMCPY, PRINT, MALLOC, _FILE, REALLOC,
+
+    EOFF
 };
 
 struct token {
     enum token_type type;
     union {
-        char* id;
+        char* string;
         char c8;
         int i32;
         long i64;
         float f32;
         double f64;
     };
+    char* lexeme;
     int lbp;
     int line;
 };
 
-struct scan_md {
-    char* src;
-    int line;
+struct tokens {
+    struct token** tokens;
+    int n_tokens;
+    int capacity;
+    int idx;
+};
+
+struct scanner_info {
+    char* source;
     int start;
     int end;
+    int line;
 };
 
-struct tokens {
-    struct token** vec;
-    int n;
-    int i;
-    int size;
+struct keyword_entry {
+    int occupied;
+    char* keyword;
+    enum token_type type;
 };
 
-int compute_perfect_hash(char* s, int len);
-int get_token_type(char* s, int len, char** kw_map);
-void add_token(struct tokens* toks, enum token_type type, struct scan_md* s_md, int lbp, long len);
-void read_token(struct scan_md* s_md, struct tokens* toks, long len, char** kw_map);
-struct tokens* scan(char* src, long len);
+uint32_t compute_hash(char* str, int len);
+void construct_keyword_hashtab(struct keyword_entry* keyword_hashtab);
+void add_token(enum token_type type, int lbp, struct scanner_info* scan_info, struct tokens* token_lst);
+void scan(struct scanner_info* scan_info, struct keyword_entry* keyword_hashtab, struct tokens* token_lst);
+struct tokens* lexical_analysis(char* source, long len);
+
+
+
+
 
 
 #endif

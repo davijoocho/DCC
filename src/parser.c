@@ -2,286 +2,491 @@
 #include <stdio.h>
 #include "parser.h"
 
-struct program* parse(struct tokens* toks) {
-   struct program* prog = malloc(sizeof(struct program)); 
-   INIT_PROGRAM(prog);
+struct program* syntax_analysis(struct tokens* tokens) {
+    struct program* program = malloc(sizeof(struct program));
+    int capacity = 256;
+    program->stmts = malloc(sizeof(struct stmt*) * capacity);
+    program->n_stmts = 0;
 
-   while (NOT_EOF(toks)) {
-       if (NEXT_TOKEN(toks) == SPACES || NEXT_TOKEN(toks) == NEW_LINE) {
-           CONSUME_TOKEN(toks);
-       } else {
-           if (OVERFLOW(prog)) {
-               GROW_MEMORY(prog);
-           }
-           //printf("parse()\n");
-           ADD_STATEMENT(prog, parse_stmt(toks, 0));
-       }
-   }
+    while (tokens->tokens[tokens->idx]->type != EOFF) {
+        if (program->n_stmts == capacity) {
+            program->stmts = realloc(program->stmts, sizeof(struct stmt*) * capacity * 2);
+            capacity *= 2;
+        }
+        //printf("syntax_analysis()\n");
+        program->stmts[program->n_stmts++] = parse_stmt(tokens, 0);
+    }
 
-   if (UNUSED_MEMORY_EXISTS(prog)) {
-       SHRINK_MEMORY(prog);
-   }
 
-   return prog;
+    if (program->n_stmts < capacity) {
+        program->stmts = realloc(program->stmts, sizeof(struct stmt*) * program->n_stmts);
+    }
+
+    free(tokens);
+    return program;
 }
 
 
-struct stmt* parse_stmt(struct tokens* toks, int scope) {
+struct stmt* parse_stmt(struct tokens* tokens, int scope) {
     struct stmt* stmt = malloc(sizeof(struct stmt));
 
-    if (NEXT_TOKEN(toks) == IDENTIFIER) {
-        if (LOOK_AHEAD(toks) == LEFT_PAREN) {
-            //printf("parse_stmt() -> PROCEDURE CALL\n");
-            INIT_PROCEDURE_CALL(stmt, toks);
+    switch (tokens->tokens[tokens->idx]->type) {
+        case READ:
+        case CLOSE:
+        case PRINT:
+        case FREE:
+        case MEMCPY:
+        case WRITE:
+        case IDENTIFIER:   // PROCEDURE
+            if (tokens->tokens[tokens->idx + 1]->type == LEFT_PAREN) {
+                //printf("parse_stmt() - PROCEDURE\n");
+                struct proc* proc = malloc(sizeof(struct proc));
+                proc->id = tokens->tokens[tokens->idx++]; 
+                proc->args = malloc(sizeof(struct expr*) * 6);  // 6 max arguments for bootstrap compiler
+                proc->n_args = 0;
 
-            while (NEXT_TOKEN(toks) != RIGHT_PAREN) {
-                INSERT_ARG(stmt->proc, parse_expr(toks, 0));
-                if (NEXT_TOKEN(toks) == COMMA) {
-                    CONSUME_TOKEN(toks); // expect ','
-                }
-            }
-            CONSUME_TOKEN(toks);  // expect ')'
-            CONSUME_TOKEN(toks);  // expect '\n'
+                tokens->idx++; // expect '('
 
-            if (NOT_MAX_ARGS(stmt->proc)) {
-                SHRINK_ARGS(stmt->proc);
-            }
-
-        } else if (LOOK_AHEAD(toks) == ASSIGN) {
-            //printf("parse_stmt() -> ASSIGN\n");
-            INIT_ASSIGN_STMT(stmt, toks);
-            CONSUME_TOKEN(toks);   // expect '\n'
-        }
-
-    } else if (NEXT_TOKEN_IS_TYPE(toks)) {
-        //printf("parse_stmt() -> VAR DECL\n");
-        INIT_VAR_DECL(stmt, toks, scope);
-        if (scope != 0) {            // NOT FUNCTION PARAMETER
-            CONSUME_TOKEN(toks);   // expect '\n'
-        }
-
-    } else if (NEXT_TOKEN(toks) == RETURN) {
-        //printf("print_stmt() -> RETURN\n");
-        INIT_RETURN_STMT(stmt, toks);
-        CONSUME_TOKEN(toks);   // expect '\n'
-
-    } else if (NEXT_TOKEN(toks) == COLON) {
-        //printf("print_stmt() -> BLOCK scope %d\n", scope / 4);
-        CONSUME_TOKEN(toks);   // expect ':'
-        CONSUME_TOKEN(toks);   // expect '\n'
-        INIT_BLOCK_STMT(stmt, toks);
-        int blk_capacity = 64;
-
-        while (NOT_EOF(toks) && (NEXT_TOKEN(toks) == SPACES || NEXT_TOKEN(toks) == NEW_LINE)) {
-            if (NEXT_TOKEN(toks) == NEW_LINE) {
-                CONSUME_TOKEN(toks);  // expect '\n'
-            } else  {
-                if (LOOK_AHEAD(toks) == NEW_LINE) { 
-                    SKIP_LINE(toks);
-                } else {
-                    if (SPACE_INDENT(toks) % 4 != 0) {
-                        // error
-                    } else {
-                        if (SPACE_INDENT(toks) > scope) {
-                            // error
-                        } else if (SPACE_INDENT(toks) == scope) {
-                            CONSUME_TOKEN(toks);  // expect ' '
-                            if (BLOCK_OVERFLOW(stmt->block, blk_capacity)) {
-                                GROW_BLOCK(stmt->block, blk_capacity);
-                            }
-                            //printf("print_stmt() -> BLOCK scope %d stmt# %d\n", scope / 4, stmt->block->n_stmts);
-                            INSERT_STMT(stmt->block, parse_stmt(toks, scope));
-
-                        } else if (SPACE_INDENT(toks) < scope) {
-                            break;
-                        }
+                while (tokens->tokens[tokens->idx]->type != RIGHT_PAREN) {
+                    proc->args[proc->n_args++] = parse_expr(tokens, 0);
+                    if (tokens->tokens[tokens->idx]->type == COMMA) {
+                        tokens->idx++;  // expect ','
                     }
                 }
+
+                tokens->idx++; // expect ')'
+                tokens->idx++; // expect '\n'
+
+                stmt->type = PROCEDURAL_CALL;
+                stmt->proc = proc;
+            } else {  // ASSIGN
+                //printf("parse_stmt() - ASSIGN\n");
+                struct assign* assign = malloc(sizeof(struct assign));
+                assign->lhv = parse_expr(tokens, 0);
+                tokens->idx++;  // expect '='
+                assign->rhv = parse_expr(tokens, 0);
+
+                tokens->idx++; // expect '\n'
+
+                stmt->assign = assign;
+                stmt->type = ASSIGN_STMT;
             }
-        }
+            break;
 
-        if (NOT_MAX_CAPACITY(stmt->block, blk_capacity)) {
-            SHRINK_BLOCK(stmt->block);
-        }
+        case C8:
+        case I32:
+        case I64:
+        case F32:
+        case F64:
+        case STRUCT_ID:
+        case _FILE:
+        case STRING: {   // DECLARATION
+            //printf("parse_stmt() - DECLARATION\n");
+            struct var_decl* var_decl = malloc(sizeof(struct var_decl));
+            var_decl->type = tokens->tokens[tokens->idx++];
+            var_decl->indirect = 0;
+            var_decl->array_literal = 0;
 
-    } else if (NEXT_TOKEN(toks) == FUNCTION) { 
-        //printf("parse_stmt() -> FUNCTION_DEF %s\n", toks->vec[toks->i + 1]->id);
-        CONSUME_TOKEN(toks);  // expect 'fn'
-        INIT_FUNCTION_DEF(stmt, toks);
-        CONSUME_TOKEN(toks);  // expect '('
-
-        while (NEXT_TOKEN(toks) != RIGHT_PAREN) {
-            //printf("parse_stmt() -> FUNCTION_DEF -> PARAM #%d\n", stmt->defun->n_params);
-            INSERT_PARAM(stmt->defun, parse_stmt(toks, 0));
-            if (NEXT_TOKEN(toks) == COMMA) {
-                CONSUME_TOKEN(toks); // expect ','
-            }
-        }
-        CONSUME_TOKEN(toks); // expect ')'
-        CONSUME_TOKEN(toks); // expect '->'
-        INSERT_RETURN_TYPE(stmt->defun, CONSUME_TOKEN(toks));  // expect 'i32', 'i64', etc
-
-        if (NOT_MAX_PARAMS(stmt->defun)) {
-            SHRINK(stmt->defun);
-        }
-        INSERT_DEFINITION(stmt->defun, parse_stmt(toks, scope + 4));
-
-    } else if (NEXT_TOKEN(toks) == PROCEDURE) {
-        //printf("parse_stmt() -> PROCEDURE DECL\n");
-        CONSUME_TOKEN(toks);   // expect 'proc'
-        INIT_PROCEDURE_DEF(stmt, toks);
-        CONSUME_TOKEN(toks); // expect '('
-
-        while (NEXT_TOKEN(toks) != RIGHT_PAREN) {
-            INSERT_PARAM(stmt->defproc, parse_stmt(toks, 0));
-            if (NEXT_TOKEN(toks) == COMMA) {
-                CONSUME_TOKEN(toks); // expect ','
-            }
-        }
-        CONSUME_TOKEN(toks); // expect ')'
-
-        if (NOT_MAX_PARAMS(stmt->defproc)) {
-            SHRINK(stmt->defproc);
-        }
-        INSERT_DEFINITION(stmt->defproc, parse_stmt(toks, scope + 4));
-
-    } else if (NEXT_TOKEN(toks) == IF) {
-        //printf("parse_stmt() -> IF\n");
-        CONSUME_TOKEN(toks);  // expect 'if'
-        INIT_IF_STMT(stmt, toks, scope);
-        int brnch_capacity = 2;
-
-        while (NEXT_TOKEN(toks) == SPACES && SPACE_INDENT(toks) == scope 
-                && (LOOK_AHEAD(toks) == ELSE || LOOK_AHEAD(toks) == ELIF)) {
-            //printf("parse_if_body\n");
-            CONSUME_TOKEN(toks); // expect ' '
-            if (BRANCH_OVERFLOW(stmt->if_stmt, brnch_capacity)) {
-                GROW_BRANCHES(stmt->if_stmt, brnch_capacity);
+            while (tokens->tokens[tokens->idx]->type == STAR) {
+                var_decl->indirect++;
+                tokens->idx++;
             }
 
-            if (CONSUME_TOKEN(toks)->type == ELSE) {
-                //printf("parse_stmt() -> ELSE\n");
-                INIT_ELSE_STMT(stmt->if_stmt, toks, scope);
-            } else {
-                //printf("parse_stmt() -> ELIF\n");
-                INIT_ELIF_STMT(stmt->if_stmt, toks, scope);
-            }
-        }
+            var_decl->id = tokens->tokens[tokens->idx++];
 
-        if (NOT_MAX_BRANCHES(stmt->if_stmt, brnch_capacity)) {
-            SHRINK_BRANCHES(stmt->if_stmt);
-        }
-
-    } else if (NEXT_TOKEN(toks) == WHILE) {
-        //printf("parse_stmt() -> WHILE\n");
-        CONSUME_TOKEN(toks); // expect 'while'
-        INIT_WHILE_STMT(stmt, toks, scope);
-    } else if (NEXT_TOKEN(toks) == STRUCT) {
-        //printf("parse_stmt() -> STRUCT\n");
-        CONSUME_TOKEN(toks);  // expect 'struct'
-        INIT_STRUCT_DEF(stmt, toks); 
-        CONSUME_TOKEN(toks);  // expect ':'
-        CONSUME_TOKEN(toks);  // expect '\n'
-
-        while (NOT_EOF(toks) && NEXT_TOKEN(toks) == SPACES) {
-            if (LOOK_AHEAD(toks) == NEW_LINE) {
-                SKIP_LINE(toks);
-            } else {
-                if (SPACE_INDENT(toks) == 4) {
-                    CONSUME_TOKEN(toks);  // expect ' '
-                    INSERT_FIELD(stmt->defstruct, parse_stmt(toks, 0));
-                    CONSUME_TOKEN(toks);  // expect '\n'
+            if (scope == 0) {   
+                // PARAMETER
+                var_decl->value = NULL;
+            } else {            
+                // LOCAL_VARIABLE
+                if (tokens->tokens[tokens->idx]->type == LEFT_BRACK) {
+                    // not allowed to declare stack-allocated array in parameter
+                    var_decl->array_literal = 1;
+                    var_decl->indirect++;
+                    tokens->idx += 2; // expect '[' and ']'
                 }
-                // error -> indentation < 4 or > 4
+                tokens->idx++; // expect '='
+                var_decl->value = parse_expr(tokens, 0);
+                tokens->idx++; // expect '\n'
             }
-        }
 
-        if (NOT_MAX_FIELD(stmt->defstruct)) {
-            SHRINK_FIELD(stmt->defstruct);
-        }
+            stmt->var_decl = var_decl;
+            stmt->type = VAR_DECL_STMT;
+            }
+            break;
+
+        case RETURN: { // RETURN
+            //printf("parse_stmt() - RETURN\n");
+            tokens->idx++; // expect 'ret'
+            struct ret* ret = malloc(sizeof(struct ret));
+            ret->value = NULL; // PROCEDURES CAN USE RETURN TO TERMINATE FUNCTION
+
+            if (tokens->tokens[tokens->idx]->type != NEW_LINE)
+                ret->value = parse_expr(tokens, 0);
+
+            tokens->idx++; // expect '\n'
+
+            stmt->ret = ret;
+            stmt->type = RETURN_STMT;
+            }
+            break;
+
+        case COLON: {  // SCOPE
+            //printf("parse_stmt() - SCOPE %d\n", scope / 4);
+            struct block* block = malloc(sizeof(struct block));
+            int blk_capacity = 128;
+            block->stmts = malloc(sizeof(struct stmt*) * blk_capacity);
+            block->n_stmts = 0;
+
+            tokens->idx++;  // expect ':'
+            tokens->idx++; // expect '\n'
+
+            struct token* nxt = tokens->tokens[tokens->idx];
+            while (nxt->type == INDENT && nxt->i32 == scope) {
+                // CHECK_ERROR: indent is higher, indent is not divisible by 4
+                tokens->idx++; // expect IDENT
+                if (block->n_stmts == blk_capacity) {
+                    block->stmts = realloc(block->stmts, sizeof(struct stmt*) * blk_capacity * 2);
+                    blk_capacity *= 2;
+                }
+
+                //printf("parse_stmt() - STATEMENT\n");
+                block->stmts[block->n_stmts++] = parse_stmt(tokens, scope);
+                nxt = tokens->tokens[tokens->idx];
+            }
+
+            if (block->n_stmts < blk_capacity) {
+                block->stmts = realloc(block->stmts, sizeof(struct stmt*) * block->n_stmts);
+            }
+
+            stmt->block = block;
+            stmt->type = BLOCK_STMT;
+            }
+            break;
+
+        case FUNCTION: {
+            //printf("parse_stmt() - FUNCTION\n");
+            tokens->idx++; // expect 'fn'
+            struct defun* fn = malloc(sizeof(struct defun));
+            fn->id = tokens->tokens[tokens->idx++]; 
+            fn->params = malloc(sizeof(struct stmt*) * 6);
+            fn->n_params = 0;
+
+            tokens->idx++;  // expect '('
+
+            while (tokens->tokens[tokens->idx]->type != RIGHT_PAREN) {
+                fn->params[fn->n_params++] = parse_stmt(tokens, 0);
+                if (tokens->tokens[tokens->idx]->type == COMMA) {
+                    tokens->idx++; // expect ','
+                }
+            }
+
+            tokens->idx++; // expect ')'
+            tokens->idx++; // expect '->'
+
+            fn->return_type = tokens->tokens[tokens->idx++]; // expect 'i32', 'i64', etc
+            fn->indirect = 0;
+
+            while (tokens->tokens[tokens->idx]->type == STAR) {
+                fn->indirect++;
+                tokens->idx++;
+            }
+
+            fn->def = parse_stmt(tokens, 4);
+
+            stmt->defun = fn;
+            stmt->type = FUNCTION_DEF;
+            }
+            break;
+
+
+        case PROCEDURE: {
+            //printf("parse_stmt() - PROCEDURE\n");
+            tokens->idx++; // expect 'proc'
+            struct defproc* proc = malloc(sizeof(struct defproc));
+            proc->id = tokens->tokens[tokens->idx++];
+            proc->params = malloc(sizeof(struct stmt*) * 6);
+            proc->n_params = 0;
+
+            tokens->idx++; // expect '('
+            while (tokens->tokens[tokens->idx]->type != RIGHT_PAREN) {
+                proc->params[proc->n_params++] = parse_stmt(tokens, 0);
+                if (tokens->tokens[tokens->idx]->type == COMMA) {
+                    tokens->idx++; // expect ','
+                }
+            }
+
+            tokens->idx++; // expect ')'
+            proc->def = parse_stmt(tokens, 4);
+
+            stmt->defproc = proc;
+            stmt->type = PROCEDURE_DEF;
+            }
+            break;
+
+        case WHILE: {
+            //printf("parse_stmt() - WHILE\n");
+            tokens->idx++; // expect 'while'
+            struct while_stmt* _while = malloc(sizeof(struct while_stmt));
+            _while->cond = parse_expr(tokens, 0);
+            _while->body = parse_stmt(tokens, scope + 4);
+
+            stmt->while_stmt = _while;
+            stmt->type = WHILE_STMT;
+            }
+            break;
+
+        case IF: {
+            //printf("parse_stmt() - IF\n");
+            tokens->idx++; // expect 'if'
+
+            struct if_stmt* _if = malloc(sizeof(struct if_stmt));
+            _if->cond = parse_expr(tokens, 0);
+            _if->body = parse_stmt(tokens, scope + 4);
+
+            int capacity = 2;
+            _if->elifs = malloc(sizeof(struct elif_stmt*) * capacity);
+            _if->n_elifs = 0;
+            _if->_else = NULL; 
+
+            struct token* nxt = tokens->tokens[tokens->idx];
+            struct token* look_ahead = tokens->tokens[tokens->idx + 1];
+
+            while (nxt->type == INDENT && nxt->i32 == scope &&
+                    (look_ahead->type == ELIF || look_ahead->type == ELSE)) {
+                tokens->idx += 2; // expect INDENT and (ELSE or ELIF)
+
+                if (look_ahead->type == ELIF) {
+                    if (_if->n_elifs == capacity) {
+                        _if->elifs = realloc(_if->elifs, sizeof(struct elif_stmt*) * capacity * 2);
+                        capacity *= 2;
+                    }
+                    //printf("parse_stmt() - ELIF\n");
+                    struct elif_stmt* elif = malloc(sizeof(struct elif_stmt));
+                    elif->cond = parse_expr(tokens, 0);
+                    elif->body = parse_stmt(tokens, scope + 4);
+                    _if->elifs[_if->n_elifs++] = elif;
+                } else {
+                    //printf("parse_stmt() - ELSE\n");
+                    struct else_stmt* _else = malloc(sizeof(struct else_stmt));
+                    _else->body = parse_stmt(tokens, scope + 4);
+                    _if->_else = _else;
+                }
+
+                nxt = tokens->tokens[tokens->idx];
+                look_ahead = tokens->tokens[tokens->idx + 1];
+            }
+
+            if (_if->n_elifs < capacity) {
+                _if->elifs = realloc(_if->elifs, sizeof(struct elif_stmt*) * _if->n_elifs);
+            }
+
+            stmt->if_stmt = _if;
+            stmt->type = IF_STMT;
+            }
+            break;
+
+        case STRUCT: {
+            //printf("parse_stmt() - STRUCT\n");
+            tokens->idx++; // expect 'struct'
+            struct defstruct* _struct = malloc(sizeof(struct defstruct));
+            _struct->id = tokens->tokens[tokens->idx++];
+            _struct->fields = malloc(sizeof(struct stmt*) * 16);  // 16 max fields for bootstrap compiler
+            _struct->n_fields = 0;
+
+            tokens->idx++; // expect ':'
+            tokens->idx++; // expect '\n'
+
+            while (tokens->tokens[tokens->idx]->type == INDENT) {
+                // CHECK_ERROR: indentation is not 4
+                //printf("parse_stmt() - FIELD\n");
+                tokens->idx++; // expect INDENT
+                _struct->fields[_struct->n_fields++] = parse_stmt(tokens, 0);
+                tokens->idx++; // expect '\n'
+            }
+
+            if (_struct->n_fields < 16) {
+                _struct->fields = realloc(_struct->fields, sizeof(struct stmt*) * _struct->n_fields);
+            }
+
+            stmt->defstruct = _struct;
+            stmt->type = STRUCT_DEF;
+            }
+            break;
+        default:
+            break;
     }
 
     return stmt;
 }
 
-
-struct expr* parse_nud(struct tokens* toks, struct token* op) {
+struct expr* parse_nud(struct tokens* tokens, struct token* op) {
     struct expr* expr = malloc(sizeof(struct expr));
+    expr->indirect = 0;   //  FOR EXPLICIT TYPE-CAST
+    expr->struct_id = NULL;
 
-    if (IS_LITERAL(op)) {
-        //printf("parse_nud() -> LITERAL\n");
-        INIT_LITERAL_EXPR(expr, op);
+    switch (op->type) {
+        case INTEGER:
+        case LONG:
+        case FLOAT:
+        case DOUBLE:
+        case CHARACTER:
+        case STRING_LITERAL:
+        case EMPTY: {
+            //printf("parse_nud() - LITERAL\n");
+            struct literal* literal = malloc(sizeof(struct literal));
+            literal->value = op;
+            expr->literal = literal;
+            expr->type = LITERAL;
+            }
+            break;
 
-    } else if (IS_UNARY(op)) {
-        //printf("parse_nud() -> UNARY\n");
-        INIT_UNARY_EXPR(expr, op, parse_expr(toks, 95));   // parse access-operations
+        case STAR: // DEREFERENCE
+        case AND:  // ADDRESS-OF
+        case LOGICAL_NOT:
+        case MINUS: {  // NEGATIVE
+            //printf("parse_nud() - UNARY\n");
+            struct unary* unary = malloc(sizeof(struct unary));
+            unary->op = op;
+            unary->right = parse_expr(tokens, 99);
+            expr->unary = unary;
+            expr->type = UNARY;
+            }
+            break;
 
-    } else if (IS_GROUP(op)) {
-        if (NEXT_IS_PRIMITIVE_TYPE(toks)) {   // EXPLICIT CONVERSION OPERATION
-            //printf("parse_nud() -> CONVERSION\n");
-            struct token* convert_type = CONSUME_TOKEN(toks);
-            CONSUME_TOKEN(toks); // expect ')'
-            INIT_UNARY_EXPR(expr, convert_type, parse_expr(toks, 95)); // parse access-operations
+        case LEFT_PAREN: {
+            struct token* nxt = tokens->tokens[tokens->idx++];
+            if (nxt->type == I32 || nxt->type == I64 || nxt->type == F32 || nxt->type == F64 ||
+                    nxt->type == C8 || nxt->type == STRING || nxt->type == STRUCT_ID) {  // EXPLICIT TYPE-CAST (PRIMITIVE)
 
-        } else {
-            //printf("parse_nud() -> GROUP\n");
-            expr = parse_expr(toks, 0);
-            CONSUME_TOKEN(toks);   // expect ')'
-        }
+                //printf("parse_nud() - TYPE_CAST\n");
+                struct unary* type_cast = malloc(sizeof(struct unary));
+                type_cast->op = nxt;
 
-    } else if (IS_ALLOCATION(op)) {
-        //printf("parse_nud() -> ALLOCATION\n");
-        CONSUME_TOKEN(toks); // expect '('
-        INIT_UNARY_EXPR(expr, op, parse_expr(toks, 0));
-        CONSUME_TOKEN(toks); // expect ')'
-
-    } else if (IS_IDENTIFIER(op)) {
-        if (NEXT_TOKEN(toks) == LEFT_PAREN) {
-            //printf("parse_nud() -> CALL\n");
-            CONSUME_TOKEN(toks);      // expect '('
-            INIT_CALL_EXPR(expr, op);
-
-            while (NEXT_TOKEN(toks) != RIGHT_PAREN) {
-                //printf("parse_nud() -> CALL arg# %d\n", expr->call->n_args);
-                INSERT_ARG(expr->call, parse_expr(toks, 0));
-                if (NEXT_TOKEN(toks) == COMMA) {
-                    CONSUME_TOKEN(toks);  // expect ','
+                while (tokens->tokens[tokens->idx]->type == STAR) {  
+                    expr->indirect++;
+                    tokens->idx++;  // expect '*'
                 }
-            }
-            CONSUME_TOKEN(toks); // expect ')'
 
-            if (NOT_MAX_ARGS(expr->call)) {
-                SHRINK_ARGS(expr->call);
+                tokens->idx++;  // expect ')'
+
+                type_cast->right = parse_expr(tokens, 99);
+                expr->unary = type_cast;
+                expr->type = UNARY;
+            } else {  // GROUPING
+                //printf("parse_nud() - GROUPING\n");
+                free(expr);
+                expr = parse_expr(tokens, 0);
+                tokens->idx++; // expect ')'
             }
 
-        } else {
-            //printf("parse_nud() -> VARIABLE\n");
-            INIT_VARIABLE_EXPR(expr, op);
-        }
+            }
+            break;
+
+        case OPEN:
+        case MALLOC:
+        case REALLOC:
+        case IDENTIFIER:
+            if (tokens->tokens[tokens->idx]->type == LEFT_PAREN) {
+                //printf("parse_nud() - CALL\n");
+                tokens->idx++; // expect '('
+                struct call* call = malloc(sizeof(struct call));
+                call->id = op;
+                call->args = malloc(sizeof(struct expr*) * 6);
+                call->n_args = 0;
+
+                while (tokens->tokens[tokens->idx]->type != RIGHT_PAREN) {
+                    //printf("parse_nud() - ARG\n");
+                    call->args[call->n_args++] = parse_expr(tokens, 0);
+                    if (tokens->tokens[tokens->idx]->type == COMMA) {
+                        tokens->idx++; // expect ','
+                    }
+                }
+
+                tokens->idx++; // expect ')'
+
+                expr->call = call;
+                expr->type = CALL;
+            } else {
+                //printf("parse_nud() - VARIABLE\n");
+                struct variable* variable = malloc(sizeof(struct variable));
+                variable->id = op;
+                expr->variable = variable;
+                expr->type = VARIABLE;
+            }
+            break;
+
+
+        case LEFT_BRACE: {   // ARRAY LITERAL 
+            //printf("parse_nud() - ARRAY_LITERAL\n");
+            struct array_literal* arr = malloc(sizeof(struct array_literal));
+            int capacity = 16;
+            arr->literals = malloc(sizeof(struct expr*) * capacity);
+            arr->n_literals = 0;
+
+            while (tokens->tokens[tokens->idx]->type != RIGHT_BRACE) {
+                if (arr->n_literals == capacity) {
+                    arr->literals = realloc(arr->literals, sizeof(struct expr*) * capacity * 2);
+                    capacity *= 2;
+                }
+                // array literal in bootstrap version of compiler forbids expressions, therefore no parse_expr (requires literals)
+                // assumption: parse_nud returns literal
+                arr->literals[arr->n_literals++] = parse_nud(tokens, tokens->tokens[tokens->idx++]); 
+            }
+
+            tokens->idx++; // expect '}'
+
+            if (arr->n_literals < capacity) {
+                arr->literals = realloc(arr->literals, sizeof(struct expr*) * arr->n_literals);
+            }
+
+            expr->array_literal = arr;
+            expr->type = ARRAY_LITERAL;
+            }
+            break;
+
+        default:
+            break;
     }
-
     return expr;
 }
 
-struct expr* parse_led(struct expr* left, struct tokens* toks, struct token* op) {
+
+
+struct expr* parse_led(struct expr* left, struct tokens* tokens, struct token* op) {
+    //printf("parse_led() %d\n", op->type);
     struct expr* expr = malloc(sizeof(struct expr)); 
-    INIT_BINARY_EXPR(expr, left, op, parse_expr(toks, op->lbp));
+
+    struct binary* binary = malloc(sizeof(struct binary));
+    binary->op = op;
+    binary->left = left;
+    binary->right = parse_expr(tokens, op->lbp);
+
     if (op->type == LEFT_BRACK) {
-        CONSUME_TOKEN(toks); // expect ']'
+        tokens->idx++;  // expect ']'
     }
+
+    expr->binary = binary;
+    expr->type = BINARY;
+
     return expr;
 }
 
-struct expr* parse_expr(struct tokens* toks, int rbp) {
-    struct expr* left = parse_nud(toks, CONSUME_TOKEN(toks));
+struct expr* parse_expr(struct tokens* tokens, int rbp) {
+    //printf("parse_expr()\n");
+    struct expr* left = parse_nud(tokens, tokens->tokens[tokens->idx++]);
 
-    while (!TERMINATING_SYMBOL(toks) && rbp < OP_BINDING_POWER(toks)) {
-        left = parse_led(left, toks, CONSUME_TOKEN(toks));
+    struct token* nxt = tokens->tokens[tokens->idx];
+    while (!(nxt->type == COMMA || nxt->type == NEW_LINE || nxt->type == RIGHT_PAREN ||
+                nxt->type == COLON || nxt->type == ASSIGN || nxt->type == RIGHT_BRACK)   
+            // no RIGHT_BRACE for bootstrap because array literal requires literals (i.e no expressions)
+            && rbp < nxt->lbp) {
+        left = parse_led(left, tokens, tokens->tokens[tokens->idx++]);
+        nxt = tokens->tokens[tokens->idx];
     }
+
     return left;
 }
-
-
 
 
 
