@@ -136,6 +136,7 @@ void type_check_expr(struct local_symtab* local_symtab, struct stmt** global_sym
         struct expr* expr, struct program* program) {
     switch (expr->type) {
         case BINARY:
+            // widen is just adding type-cast
             // IGNORE DOT FOR NOW - NOT SUPPORTING STACK ALLOCATED STRUCTS
             // +, -, /, *, %, [], ->, <<, >>, |, &, or, and, is, isnt, <, >, <=, >=
             break;

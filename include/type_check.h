@@ -38,8 +38,6 @@ void delete_local_sym(struct local_symtab* symtab, char* id);
 void grow_local_symtab(struct local_symtab* symtab, int new_capacity);
 void insert_local(struct local_symtab* symtab, struct var_decl* var_decl);
 
-
-
 void type_check_expr(struct local_symtab* local_symtab, struct stmt** global_symtab,
         struct expr* expr, struct program* program);
 
