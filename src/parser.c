@@ -1,6 +1,12 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include "parser.h"
+
+
+
+// IF ERROR DETECTED => PRINT OUT ERROR MESSAGE AND CONSUME ALL SUBSEQUENT TOKENS UNTIL NEXT NEWLINE
+// CONTINUE PARSING, BUT TERMINATE PROGRAM IMMEDIATELY AFTERWARDS
 
 struct program* syntax_analysis(struct tokens* tokens) {
     struct program* program = malloc(sizeof(struct program));
@@ -17,7 +23,6 @@ struct program* syntax_analysis(struct tokens* tokens) {
         program->stmts[program->n_stmts++] = parse_stmt(tokens, 0);
     }
 
-
     if (program->n_stmts < capacity) {
         program->stmts = realloc(program->stmts, sizeof(struct stmt*) * program->n_stmts);
     }
@@ -31,11 +36,11 @@ struct stmt* parse_stmt(struct tokens* tokens, int scope) {
     struct stmt* stmt = malloc(sizeof(struct stmt));
 
     switch (tokens->tokens[tokens->idx]->type) {
+        case PRINT:
+        case MEMCPY:
+        case FREE:
         case READ:
         case CLOSE:
-        case PRINT:
-        case FREE:
-        case MEMCPY:
         case WRITE:
         case IDENTIFIER:   // PROCEDURE
             if (tokens->tokens[tokens->idx + 1]->type == LEFT_PAREN) {
@@ -79,7 +84,6 @@ struct stmt* parse_stmt(struct tokens* tokens, int scope) {
         case F32:
         case F64:
         case STRUCT_ID:
-        case _FILE:
         case STRING: {   // DECLARATION
             //printf("parse_stmt() - DECLARATION\n");
             struct var_decl* var_decl = malloc(sizeof(struct var_decl));
@@ -101,13 +105,29 @@ struct stmt* parse_stmt(struct tokens* tokens, int scope) {
                 // LOCAL_VARIABLE
                 if (tokens->tokens[tokens->idx]->type == LEFT_BRACK) {
                     // not allowed to declare stack-allocated array in parameter
+                    // BEFORE INCREMENTING INDIRECT ASSERT THAT INDIRECT = 0
                     var_decl->array_literal = 1;
                     var_decl->indirect++;
                     tokens->idx += 2; // expect '[' and ']'
                 }
+
                 tokens->idx++; // expect '='
                 var_decl->value = parse_expr(tokens, 0);
                 tokens->idx++; // expect '\n'
+            }
+
+
+            var_decl->type_repr = var_decl->type->lexeme;
+            if (!var_decl->array_literal && var_decl->indirect > 0) {
+                int len = strlen(var_decl->type->lexeme);
+                var_decl->type_repr = malloc(len + var_decl->indirect + 1);
+                strcpy(var_decl->type_repr, var_decl->type->lexeme);
+
+                // minus 1 indirect if its array literal.
+                for (int i = 0; i < var_decl->indirect; i++) {
+                    var_decl->type_repr[len + i] = '*';
+                }
+                var_decl->type_repr[len + var_decl->indirect] = '\0';
             }
 
             stmt->var_decl = var_decl;
@@ -117,8 +137,8 @@ struct stmt* parse_stmt(struct tokens* tokens, int scope) {
 
         case RETURN: { // RETURN
             //printf("parse_stmt() - RETURN\n");
-            tokens->idx++; // expect 'ret'
             struct ret* ret = malloc(sizeof(struct ret));
+            ret->token = tokens->tokens[tokens->idx++];
             ret->value = NULL; // PROCEDURES CAN USE RETURN TO TERMINATE FUNCTION
 
             if (tokens->tokens[tokens->idx]->type != NEW_LINE)
@@ -190,6 +210,18 @@ struct stmt* parse_stmt(struct tokens* tokens, int scope) {
             while (tokens->tokens[tokens->idx]->type == STAR) {
                 fn->indirect++;
                 tokens->idx++;
+            } 
+
+            fn->ret_type_repr = fn->return_type->lexeme;
+            if (fn->indirect > 0) {
+                int len = strlen(fn->return_type->lexeme);
+                fn->ret_type_repr = malloc(len + fn->indirect + 1);
+                strcpy(fn->ret_type_repr, fn->return_type->lexeme);
+
+                for (int i = 0; i < fn->indirect; i++) {
+                    fn->ret_type_repr[len + i] = '*';
+                }
+                fn->ret_type_repr[len + fn->indirect] = '\0';
             }
 
             fn->def = parse_stmt(tokens, 4);
@@ -261,6 +293,7 @@ struct stmt* parse_stmt(struct tokens* tokens, int scope) {
                         _if->elifs = realloc(_if->elifs, sizeof(struct elif_stmt*) * capacity * 2);
                         capacity *= 2;
                     }
+
                     //printf("parse_stmt() - ELIF\n");
                     struct elif_stmt* elif = malloc(sizeof(struct elif_stmt));
                     elif->cond = parse_expr(tokens, 0);
@@ -324,6 +357,8 @@ struct expr* parse_nud(struct tokens* tokens, struct token* op) {
     struct expr* expr = malloc(sizeof(struct expr));
     expr->indirect = 0;   //  FOR EXPLICIT TYPE-CAST
     expr->struct_id = NULL;
+    expr->error = 0;
+    expr->line = op->line;
 
     switch (op->type) {
         case INTEGER:
@@ -383,8 +418,8 @@ struct expr* parse_nud(struct tokens* tokens, struct token* op) {
             }
             break;
 
-        case OPEN:
         case MALLOC:
+        case OPEN:
         case REALLOC:
         case IDENTIFIER:
             if (tokens->tokens[tokens->idx]->type == LEFT_PAREN) {
@@ -432,6 +467,9 @@ struct expr* parse_nud(struct tokens* tokens, struct token* op) {
                 // array literal in bootstrap version of compiler forbids expressions, therefore no parse_expr (requires literals)
                 // assumption: parse_nud returns literal
                 arr->literals[arr->n_literals++] = parse_nud(tokens, tokens->tokens[tokens->idx++]); 
+                if (tokens->tokens[tokens->idx]->type == COMMA) {
+                    tokens->idx++;  // expect ','
+                }
             }
 
             tokens->idx++; // expect '}'
@@ -468,6 +506,10 @@ struct expr* parse_led(struct expr* left, struct tokens* tokens, struct token* o
 
     expr->binary = binary;
     expr->type = BINARY;
+    expr->line = op->line;
+    expr->indirect = 0;   //  FOR EXPLICIT TYPE-CAST
+    expr->struct_id = NULL;
+    expr->error = 0;
 
     return expr;
 }

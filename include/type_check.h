@@ -6,6 +6,8 @@
             stmt->defproc->id->string 
 
 
+enum error_code { NO_ERROR, INVALID_EMPTY, TYPE_INEQUALITY };
+
 struct locals {
     int depth;
     char* id;
@@ -19,16 +21,21 @@ struct scope_info {
 };
 
 struct local_symtab {
-    struct defun* fn;   // for type-checking return statement
+    struct stmt* subrout;   // TYPE-CHECK RETURN 
     struct var_decl** decls;
     int n_decls;
     int capacity;
+    int error;
 };
 
 uint64_t compute_hash2(char* id);
+char* eval_to_repr(struct expr* expr);
+enum error_code type_check_decl(struct stmt* stmt, struct expr* expr);
 
 struct stmt* find_global_sym(struct stmt** global_symtab, char* id, int capacity);
 void construct_global_symtab(struct stmt** global_symtab, struct program* program);
+struct expr* widen_to(enum token_type type, struct expr* eval);
+struct expr* widen(struct stmt* stmt, struct expr* eval);
 
 void clean_up_scope(struct scope_info* scope, struct local_symtab* symtab);
 void push_local(struct scope_info* scope, char* id, int depth);

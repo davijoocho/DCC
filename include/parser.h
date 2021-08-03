@@ -20,6 +20,8 @@ struct expr {
     enum token_type eval_to;
     char* struct_id;
     int indirect;
+    int error;
+    int line;
 };
 
 struct binary {
@@ -120,8 +122,9 @@ struct defun {
     struct token* id;
     struct token* return_type;
     struct stmt** params;
-    int n_params;
     struct stmt* def;
+    char* ret_type_repr;
+    int n_params;
     int indirect;
 };
 
@@ -134,10 +137,6 @@ struct assign {
 // only one level of depth allowed for array literals
 // strings are not modifiable
 // if array_literal = 1, then indirect + 1
-// cannot reassign values to array_literals 
-
-// when allocating, knowing the number of bytes 
-// to allocate (struct, struct packing, size of type * # of items) is responsibility of programmer
 
 struct var_decl {
     struct token* type;
@@ -145,9 +144,11 @@ struct var_decl {
     struct expr* value;
     int indirect;
     int array_literal;
+    char* type_repr;
 };
 
 struct ret {
+    struct token* token;  
     struct expr* value;
 };
 
@@ -155,7 +156,6 @@ struct program {
     struct stmt** stmts;
     int n_stmts;
 };
-
 
 struct program* syntax_analysis(struct tokens* tokens);
 struct stmt* parse_stmt(struct tokens* tokens, int scope);

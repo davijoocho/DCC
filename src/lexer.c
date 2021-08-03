@@ -18,10 +18,10 @@ void construct_keyword_hashtab(struct keyword_entry* keyword_hashtab) {
     memset(keyword_hashtab, 0, sizeof(struct keyword_entry) * KEYWORD_HASHTAB_SIZE);
     char* keywords[] = {"or", "and", "is", "isnt", "not", "Empty", "c8", "i32", "i64", 
         "f32", "f64", "string", "fn", "proc", "struct", "main", "if", "elif", "else", 
-        "while", "ret", "free", "open", "write", "read", "close", "memcpy", "print", "malloc", "_FILE", "realloc"};
+        "while", "ret", "free", "open", "write", "read", "close", "malloc", "memcpy", "print",  "realloc"};
     enum token_type types[] = {LOGICAL_OR, LOGICAL_AND, IS, ISNT, LOGICAL_NOT, EMPTY, C8, I32, I64,
         F32, F64, STRING, FUNCTION, PROCEDURE, STRUCT, MAIN, IF, ELIF, ELSE,
-        WHILE, RETURN, FREE, OPEN, WRITE, READ, CLOSE, MEMCPY, PRINT, MALLOC, _FILE, REALLOC};
+        WHILE, RETURN, FREE, OPEN, WRITE, READ, CLOSE, MALLOC, MEMCPY, PRINT, REALLOC};
 
     for (int i = 0; i < N_KEYWORDS; i++) {
         uint32_t idx = compute_hash(keywords[i], strlen(keywords[i]));
@@ -47,7 +47,7 @@ void add_token(enum token_type type, int lbp, struct scanner_info* scan_info, st
     struct token* token = malloc(sizeof(struct token));
     token->type = type;
     token->lbp = lbp;
-    token->line = scan_info->line;
+    token->line = scan_info->line + 1;
 
     switch (type) {
         case STRING_LITERAL:
@@ -84,16 +84,16 @@ void add_token(enum token_type type, int lbp, struct scanner_info* scan_info, st
               scan_info->end++;
               break;
 
+        case FREE:
         case OPEN:
         case CLOSE:
         case READ:
         case WRITE:
-        case MEMCPY:
-        case MAIN:
-        case PRINT:
         case MALLOC:
+        case MEMCPY:
+        case PRINT:
+        case MAIN:
         case REALLOC:
-        case _FILE:
         case STRUCT_ID:
         case IDENTIFIER:
             token->string = malloc(scan_info->end - scan_info->start + 1);
@@ -148,27 +148,6 @@ void scan(struct scanner_info* scan_info, struct keyword_entry* keyword_hashtab,
                 add_token(MINUS, 80, scan_info, token_lst);
             }
             break;
-
-        case '/': {
-            char c = scan_info->source[scan_info->end];
-            if (c == '/') {
-                do {
-                    c = scan_info->source[++scan_info->end];
-                } while (c != '\n');
-            } else if (c == '*') {
-                int stop = 0;
-                while (!stop) {
-                    if (scan_info->source[++scan_info->end] == '*'
-                            && scan_info->source[scan_info->end + 1] == '/') {
-                        scan_info->end += 2;
-                        stop = 1;
-                    }
-                }
-            } else {
-                add_token(DIVIDE, 90, scan_info, token_lst); 
-            }
-        }
-            break;
         case '*': add_token(STAR, 90, scan_info, token_lst); break;
         case '%': add_token(MODULO, 90, scan_info, token_lst); break;
         case '[': add_token(LEFT_BRACK, 100, scan_info, token_lst); break;
@@ -184,31 +163,58 @@ void scan(struct scanner_info* scan_info, struct keyword_entry* keyword_hashtab,
         case '\'': 
               add_token(CHARACTER, 0, scan_info, token_lst); 
               break;
+        case '"':
+              while (scan_info->source[scan_info->end++] != '"');
+              add_token(STRING_LITERAL, 0, scan_info, token_lst);
+              break;
+
+
+        case '/': {
+            char c = scan_info->source[scan_info->end];
+            if (c == '/') {
+                do {
+                    c = scan_info->source[++scan_info->end];
+                } while (c != '\n');
+
+            } else if (c == '*') {
+                int stop = 0;
+                while (!stop) {
+                      if (scan_info->source[scan_info->end + 1] == '\n') {
+                          scan_info->line++;
+                      }
+                      if (scan_info->source[++scan_info->end] == '*' &&
+                              scan_info->source[scan_info->end + 1] == '/') {
+                          scan_info->end += 2;
+                          stop = 1;
+                      }
+                }
+
+            } else {
+                add_token(DIVIDE, 90, scan_info, token_lst); 
+            }
+        }
+            break;
+
         case '\n': 
               if (token_lst->n_tokens != 0 && token_lst->tokens[token_lst->n_tokens - 1]->type != NEW_LINE) {
                   add_token(NEW_LINE, 0, scan_info, token_lst);
               }
               scan_info->line++; 
               break;
-        case '"':
-              while (scan_info->source[scan_info->end++] != '"');
-              add_token(STRING_LITERAL, 0, scan_info, token_lst);
-              break;
+
         case ' ':
-              while (scan_info->source[scan_info->end] == ' ') {
+              while (scan_info->source[scan_info->end] == ' ')
                   scan_info->end++;
-              }
+             
+              struct token* prev = token_lst->tokens[token_lst->n_tokens - 1];
 
-              if (scan_info->source[scan_info->end] == '\n') {
-                  scan_info->end++;
-                  scan_info->line++;
-                  break;
-              }
-
-              if (token_lst->tokens[token_lst->n_tokens - 1]->type == NEW_LINE) {
-                  add_token(INDENT, 0, scan_info, token_lst);
+              if (prev->type == NEW_LINE) {
+                  if (IS_ALPHA(scan_info->source[scan_info->end])) {
+                      add_token(INDENT, 0, scan_info, token_lst);
+                  }
               }
               break;
+
         default: {
               char c = scan_info->source[scan_info->end - 1];
 

@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#define N_KEYWORDS 31
+#define N_KEYWORDS 30
 #define KEYWORD_HASHTAB_SIZE (N_KEYWORDS * 2)
 #define IS_NUMERIC(c) ('0' <= c && c <= '9')
 #define IS_ALPHA(c) (('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || c == '_')
@@ -43,17 +43,18 @@ enum token_type {
     RIGHT_BRACE, LEFT_BRACE,
 
     // TYPES
-    C8, I32, I64, F32, F64, STRING, 
+    C8, I32, I64, F32, F64, STRING,   // 37 - 42
 
     FUNCTION, STRUCT, STRUCT_ID, ASSIGN, INDENT, 
-    PROCEDURE, MAIN,
+    PROCEDURE, MAIN,  // 43 - 49 
 
-    IF, ELIF, ELSE, WHILE, RETURN,
+    IF, ELIF, ELSE, WHILE, RETURN, // 50 - 54
 
     // STD LIBRARY 
-    FREE, OPEN, WRITE, READ, CLOSE, MEMCPY, PRINT, MALLOC, _FILE, REALLOC,
+    FREE, OPEN, WRITE, READ, CLOSE, MALLOC, 
+    MEMCPY, PRINT, REALLOC,  // 55 - 63
 
-    EOFF
+    EOFF  // 64
 };
 
 struct token {
@@ -96,10 +97,6 @@ void construct_keyword_hashtab(struct keyword_entry* keyword_hashtab);
 void add_token(enum token_type type, int lbp, struct scanner_info* scan_info, struct tokens* token_lst);
 void scan(struct scanner_info* scan_info, struct keyword_entry* keyword_hashtab, struct tokens* token_lst);
 struct tokens* lexical_analysis(char* source, long len);
-
-
-
-
 
 
 #endif

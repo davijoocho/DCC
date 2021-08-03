@@ -19,7 +19,6 @@ int main(int argc, char* argv[])
 
 
     struct tokens* tokens = lexical_analysis(src, f_len);
-
     /*
     char* types[] = { "LOGICAL_OR", "LOGICAL_AND", "BIT_OR", "AND", 
         "IS", "ISNT","LT", "LTEQ", "GT", "GTEQ", "BIT_SHIFTR", "BIT_SHIFTL",
@@ -28,13 +27,15 @@ int main(int argc, char* argv[])
         "CHARACTER", "INTEGER", "LONG", "FLOAT", "DOUBLE", "IDENTIFIER","STRING_LITERAL", "EMPTY",
         "RIGHT_BRACE", "LEFT_BRACE","C8", "I32", "I64", "F32", "F64", "STRING",
         "FUNCTION", "STRUCT", "STRUCT_ID", "ASSIGN", "INDENT", "PROCEDURE", "MAIN",
-        "IF", "ELIF", "ELSE", "WHILE", "RETURN", "FREE", "OPEN", "WRITE", "READ", "CLOSE", 
-        "MEMCPY", "PRINT", "MALLOC", "_FILE","REALLOC", "EOFF"};
+        "IF", "ELIF", "ELSE", "WHILE", "RETURN", "FREE", "OPEN", "WRITE", "READ", "CLOSE", "MALLOC",
+        "MEMCPY", "PRINT" ,"REALLOC", "EOFF"};
     for (int i = 0; i < tokens->n_tokens; i++) {
         printf("%s, %s\n", types[tokens->tokens[i]->type], tokens->tokens[i]->lexeme);
     }
     */
+
     // free unused tokens in syntax_analysis
+    // free all new_lines
     struct program* program = syntax_analysis(tokens);
     semantic_analysis(program);
 
