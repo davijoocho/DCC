@@ -17,6 +17,8 @@ struct expr {
         struct variable* variable;
         struct array_literal* array_literal;
     };
+
+    // information for type checker
     enum token_type eval_to;
     char* struct_id;
     int indirect;

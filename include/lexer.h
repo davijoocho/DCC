@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#define N_KEYWORDS 30
+#define N_KEYWORDS 31
 #define KEYWORD_HASHTAB_SIZE (N_KEYWORDS * 2)
 #define IS_NUMERIC(c) ('0' <= c && c <= '9')
 #define IS_ALPHA(c) (('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || c == '_')
@@ -54,7 +54,7 @@ enum token_type {
     FREE, OPEN, WRITE, READ, CLOSE, MALLOC, 
     MEMCPY, PRINT, REALLOC,  // 55 - 63
 
-    EOFF  // 64
+    EOFF, VOID  // 64
 };
 
 struct token {

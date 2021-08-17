@@ -83,6 +83,7 @@ struct stmt* parse_stmt(struct tokens* tokens, int scope) {
         case I64:
         case F32:
         case F64:
+        case VOID:
         case STRUCT_ID:
         case STRING: {   // DECLARATION
             //printf("parse_stmt() - DECLARATION\n");
@@ -390,18 +391,14 @@ struct expr* parse_nud(struct tokens* tokens, struct token* op) {
             break;
 
         case LEFT_PAREN: {
-            struct token* nxt = tokens->tokens[tokens->idx++];
+            struct token* nxt = tokens->tokens[tokens->idx];
             if (nxt->type == I32 || nxt->type == I64 || nxt->type == F32 || nxt->type == F64 ||
-                    nxt->type == C8 || nxt->type == STRING || nxt->type == STRUCT_ID) {  // EXPLICIT TYPE-CAST (PRIMITIVE)
+                    nxt->type == C8) {  // EXPLICIT TYPE-CAST (PRIMITIVE)
 
                 //printf("parse_nud() - TYPE_CAST\n");
                 struct unary* type_cast = malloc(sizeof(struct unary));
                 type_cast->op = nxt;
-
-                while (tokens->tokens[tokens->idx]->type == STAR) {  
-                    expr->indirect++;
-                    tokens->idx++;  // expect '*'
-                }
+                tokens->idx++;  // expect 'i32', etc
 
                 tokens->idx++;  // expect ')'
 

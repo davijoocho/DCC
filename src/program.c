@@ -4,21 +4,25 @@
 #include "lexer.h"
 #include "parser.h"
 #include "type_check.h"
+#include "compiler0.h"
 
 
 int main(int argc, char* argv[])
 {
     FILE* fp = fopen(argv[1], "r");
 
+    char* stdlib = "fn malloc(i64 n_bytes) -> void*:\nproc free(void* ptr):\n";
     fseek(fp, 0, SEEK_END);
-    long f_len = ftell(fp);
-    char* src = malloc(f_len);
+    long src_len = ftell(fp);
+    int lib_len = strlen(stdlib);
+    char* src = malloc(src_len + lib_len);
     rewind(fp);
-    fread(src, 1, f_len, fp);
+    fread(src, 1, src_len, fp);
     fclose(fp);
+    strncpy(src + src_len, stdlib, lib_len);
 
+    struct tokens* tokens = lexical_analysis(src, src_len + lib_len);
 
-    struct tokens* tokens = lexical_analysis(src, f_len);
     /*
     char* types[] = { "LOGICAL_OR", "LOGICAL_AND", "BIT_OR", "AND", 
         "IS", "ISNT","LT", "LTEQ", "GT", "GTEQ", "BIT_SHIFTR", "BIT_SHIFTL",
@@ -28,7 +32,7 @@ int main(int argc, char* argv[])
         "RIGHT_BRACE", "LEFT_BRACE","C8", "I32", "I64", "F32", "F64", "STRING",
         "FUNCTION", "STRUCT", "STRUCT_ID", "ASSIGN", "INDENT", "PROCEDURE", "MAIN",
         "IF", "ELIF", "ELSE", "WHILE", "RETURN", "FREE", "OPEN", "WRITE", "READ", "CLOSE", "MALLOC",
-        "MEMCPY", "PRINT" ,"REALLOC", "EOFF"};
+        "MEMCPY", "PRINT" ,"REALLOC", "EOFF", "VOID"};
     for (int i = 0; i < tokens->n_tokens; i++) {
         printf("%s, %s\n", types[tokens->tokens[i]->type], tokens->tokens[i]->lexeme);
     }
@@ -37,7 +41,8 @@ int main(int argc, char* argv[])
     // free unused tokens in syntax_analysis
     // free all new_lines
     struct program* program = syntax_analysis(tokens);
-    semantic_analysis(program);
+    struct stmt** global_symtab = semantic_analysis(program);
+    compile0(argv[1], program, global_symtab);
 
     // free tokens not used 
     //struct program* program = parse(tokens);

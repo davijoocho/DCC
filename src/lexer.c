@@ -18,10 +18,10 @@ void construct_keyword_hashtab(struct keyword_entry* keyword_hashtab) {
     memset(keyword_hashtab, 0, sizeof(struct keyword_entry) * KEYWORD_HASHTAB_SIZE);
     char* keywords[] = {"or", "and", "is", "isnt", "not", "Empty", "c8", "i32", "i64", 
         "f32", "f64", "string", "fn", "proc", "struct", "main", "if", "elif", "else", 
-        "while", "ret", "free", "open", "write", "read", "close", "malloc", "memcpy", "print",  "realloc"};
+        "while", "ret", "free", "open", "write", "read", "close", "malloc", "memcpy", "printf",  "realloc", "void"};
     enum token_type types[] = {LOGICAL_OR, LOGICAL_AND, IS, ISNT, LOGICAL_NOT, EMPTY, C8, I32, I64,
         F32, F64, STRING, FUNCTION, PROCEDURE, STRUCT, MAIN, IF, ELIF, ELSE,
-        WHILE, RETURN, FREE, OPEN, WRITE, READ, CLOSE, MALLOC, MEMCPY, PRINT, REALLOC};
+        WHILE, RETURN, FREE, OPEN, WRITE, READ, CLOSE, MALLOC, MEMCPY, PRINT, REALLOC, VOID};
 
     for (int i = 0; i < N_KEYWORDS; i++) {
         uint32_t idx = compute_hash(keywords[i], strlen(keywords[i]));
@@ -253,11 +253,13 @@ void scan(struct scanner_info* scan_info, struct keyword_entry* keyword_hashtab,
 
                   while (keyword_hashtab[idx].occupied) {
                       struct keyword_entry* entry = &keyword_hashtab[idx++];
-                      if (!strncmp(entry->keyword, scan_info->source + scan_info->start, scan_info->end - scan_info->start)) {
-                          int lbp = (entry->type == LOGICAL_OR) ? 10 : (entry->type == LOGICAL_AND) ? 20 : 
-                              (entry->type == IS || entry->type == ISNT) ? 50 : 0;
-                          add_token(entry->type, lbp, scan_info, token_lst);
-                          return;
+                      if (strlen(entry->keyword) == scan_info->end - scan_info->start) {
+                          if (strncmp(entry->keyword, scan_info->source + scan_info->start, scan_info->end - scan_info->start) == 0) {
+                              int lbp = (entry->type == LOGICAL_OR) ? 10 : (entry->type == LOGICAL_AND) ? 20 : 
+                                  (entry->type == IS || entry->type == ISNT) ? 50 : 0;
+                              add_token(entry->type, lbp, scan_info, token_lst);
+                              return;
+                          }
                       }
                       if (idx == KEYWORD_HASHTAB_SIZE)
                           idx = 0;
@@ -275,6 +277,7 @@ struct tokens* lexical_analysis(char* source, long len) {
     struct keyword_entry keyword_hashtab[KEYWORD_HASHTAB_SIZE];
 
     construct_keyword_hashtab(keyword_hashtab);
+
     token_lst->tokens = malloc(sizeof(struct token*) * 512);
     token_lst->n_tokens = 0;
     token_lst->capacity = 512;

@@ -4,7 +4,8 @@
 #define SYMBOL_ID(stmt) (stmt->type == STRUCT_DEF) ? stmt->defstruct->id->string : \
             (stmt->type == FUNCTION_DEF) ? stmt->defun->id->string : \
             stmt->defproc->id->string 
-
+#define ANSI_COLOR_RED     "\x1b[1;31m"
+#define ANSI_COLOR_RESET   "\x1b[0;1m"
 
 enum error_code { NO_ERROR, INVALID_EMPTY, TYPE_INEQUALITY };
 
@@ -30,12 +31,13 @@ struct local_symtab {
 
 uint64_t compute_hash2(char* id);
 char* eval_to_repr(struct expr* expr);
-enum error_code type_check_decl(struct stmt* stmt, struct expr* expr);
+enum error_code type_check_decl(enum token_type l_eval_to, int l_direct, char* l_struct_id, struct expr* expr);
+int non_access_pre_check(struct expr* expr, struct expr* left, struct expr* right, struct local_symtab* local_symtab);
 
 struct stmt* find_global_sym(struct stmt** global_symtab, char* id, int capacity);
 void construct_global_symtab(struct stmt** global_symtab, struct program* program);
 struct expr* widen_to(enum token_type type, struct expr* eval);
-struct expr* widen(struct stmt* stmt, struct expr* eval);
+struct expr* widen(enum token_type l_eval_to, int l_indirect, struct expr* eval);
 
 void clean_up_scope(struct scope_info* scope, struct local_symtab* symtab);
 void push_local(struct scope_info* scope, char* id, int depth);
@@ -51,5 +53,5 @@ void type_check_expr(struct local_symtab* local_symtab, struct stmt** global_sym
 void type_check_stmt(struct stmt* stmt, struct local_symtab* local_symtab, 
         struct stmt** global_symtab, struct scope_info* scope, struct program* program);
 
-void semantic_analysis(struct program* program);
+struct stmt** semantic_analysis(struct program* program);
 #endif
