@@ -112,37 +112,44 @@ void compile0_stmt(struct stmt* stmt, struct exec_stack* stack, struct object_da
                 int param_addr = _push_local(stack, stmt->defun->params[i]->var_decl, 1);
                 enum token_type param_type = stmt->defun->params[i]->var_decl->type->type;
                 int indirect = stmt->defun->params[i]->var_decl->indirect;
+                // parameters should not go past 127 bytes on the stack, so mod can be set to 1 byte displacement for -x(rbp)
 
                 if (param_type == C8 && !indirect) {
-                    if (i == 0) {  // %dil
-                        char inst[7] = {0x40, 0x88, 0xbd, 0x00, 0x00, 0x00, 0x00};
-                        memcpy(inst + 3, &param_addr, 4);
-                        write_instruction(data, inst, 7);
-                    } else if (i == 1) {  // %sil
-                        char inst[7] = {0x40, 0x88, 0xb5, 0x00, 0x00, 0x00, 0x00};
-                        memcpy(inst + 3, &param_addr, 4);
-                        write_instruction(data, inst, 7);
-                    } else if (i == 2) {  // %dl
-                        char inst[6] = {0x88, 0x95, 0x00, 0x00, 0x00, 0x00};
-                        memcpy(inst + 2, &param_addr, 4);
-                        write_instruction(data, inst, 6);
-                    } else if (i == 3) {  // %cl
-                        char inst[6] = {0x88, 0x8d, 0x00, 0x00, 0x00, 0x00};
-                        memcpy(inst + 2, &param_addr, 4);
-                        write_instruction(data, inst, 6);
-                    } else if (i == 4) {  // %r8b
-                        char inst[7] = {0x44, 0x88, 0x85, 0x00, 0x00, 0x00, 0x00};
-                        memcpy(inst + 3, &param_addr, 4);
-                        write_instruction(data, inst, 7);
-                    } else if (i == 5) {  // %r9b
-                        char inst[7] = {0x44, 0x88, 0x8d, 0x00, 0x00, 0x00, 0x00};
-                        memcpy(inst + 3, &param_addr, 4);
-                        write_instruction(data, inst, 7);
+                    char rex_b[6] = {0x00, 0x00, 0x00, 0x00, 0x04, 0x04};
+                    char reg[6] = {0x38, 0x30, 0x10, 0x08, 0x00, 0x08}; 
+                    char inst[7] = {0x40, 0x88, 0x85, 0x00, 0x00, 0x00, 0x00};
+
+                    inst[0] |= rex_b[i];
+                    inst[2] |= reg[i];
+
+                    int inst_len = 6;
+                    int inst_beg = 1;
+
+                    if (i < 2 || i > 3) {
+                        inst_len = 7;
+                        inst_beg = 0;
                     }
 
+                    memcpy(inst + 3, &param_addr, 4);
+                    write_instruction(data, inst + inst_beg, inst_len);
+
                 } else if (param_type == I32 && !indirect) {
-                    // here
-                } else if (param_type == I64 || indirect 
+                    char reg[6] = {0x38, 0x30, 0x10, 0x08, 0x00, 0x08};
+                    char inst[7] = {0x44, 0x89, 0x85, 0x00, 0x00, 0x00, 0x00};
+
+                    int inst_beg = 1;
+                    int inst_len = 6;
+
+                    if (i > 3) {
+                        inst_beg = 0;
+                        inst_len = 7;
+                    }
+
+                    inst[2] |= reg[i];
+                    memcpy(inst + 3, &param_addr, 4);
+                    write_instruction(data, inst + inst_beg, inst_len);
+
+                } else if (param_type == I64 || indirect > 0
                         || param_type == STRING) {
                     char rex_b[6] = {0x00, 0x00, 0x00, 0x00, 0x04, 0x04}; 
                     char reg[6] = {0x38, 0x30, 0x10, 0x08, 0x00, 0x08};
@@ -155,9 +162,19 @@ void compile0_stmt(struct stmt* stmt, struct exec_stack* stack, struct object_da
                     write_instruction(data, inst, 7);
 
                 } else if (param_type == F32 && !indirect) {
-                    // here
+                    char reg[6] = {0x00, 0x08, 0x10, 0x18, 0x20, 0x28};
+                    char inst[8] = {0xf3, 0x0f, 0x11, 0x85, 0x00, 0x00, 0x00, 0x00};
+
+                    inst[3] |= reg[i];
+                    memcpy(inst + 4, &param_addr, 4);
+                    write_instruction(data, inst, 8);
                 } else if (param_type == F64 && !indirect) {
-                    // here
+                    char reg[6] = {0x00, 0x08, 0x10, 0x18, 0x20, 0x28};
+                    char inst[8] = {0xf2, 0x0f, 0x11, 0x85, 0x00, 0x00, 0x00, 0x00};
+
+                    inst[3] |= reg[i];
+                    memcpy(inst + 4, &param_addr, 4);
+                    write_instruction(data, inst, 8);
                 }
             }
 
