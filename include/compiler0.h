@@ -113,8 +113,7 @@ struct dysymtab_command {
 };
 
 
-enum data_type { LITERAL_4, LITERAL_8, CSTRING, CONST_4, CONST_8, CONST_STRING };
-enum registers { RDI, RSI, RDX, RCX, R8, R9, R10 };
+enum data_type { LITERAL_4, LITERAL_8, CSTRING, CONST_4, CONST_8, DATA_CONST };
 
 struct local {
     char* id;
@@ -131,8 +130,6 @@ struct exec_stack {
     int total_space;
     int call_status;
 
-    enum registers occupied_regs[7];
-    enum registers free_regs[7];
     enum stmt_type subrout_type;
 };
 
@@ -144,7 +141,7 @@ struct data_section {
 
 struct object_data {
     char* code;
-    struct data_section* section;   
+    struct data_section* sections;   
     struct relocation_info* reloc_entries;
     struct nlist_64* sym_entries;
     char* str_entries;

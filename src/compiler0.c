@@ -73,10 +73,10 @@ void add_nlist64(struct object_data* data, char* sym, uint8_t type, uint8_t sect
     nlist->n_type = type;
     nlist->n_sect = sect;
     nlist->n_desc = 0;
-    nlist->n_value = value;
+    nlist->n_value = value;  // address relative to __TEXT, __text
 
     int len = strlen(sym) + 2;
-    if (data->str_pos + len + 1 > data->str_capacity) {
+    if (data->str_pos + len > data->str_capacity) {
         data->str_entries = realloc(data->str_entries, data->str_capacity * 2);
         memset(data->str_entries + data->str_capacity, 0, data->str_capacity);
         data->str_capacity *= 2;
@@ -89,9 +89,7 @@ void add_nlist64(struct object_data* data, char* sym, uint8_t type, uint8_t sect
     free(entry);
 
     nlist->n_strx = data->str_pos;
-
     data->str_pos += len;
-    data->str_pos++;  
 }
 
 // REGISTERS HAS BUG
@@ -109,72 +107,72 @@ void compile0_stmt(struct stmt* stmt, struct exec_stack* stack, struct object_da
             char* sub_imm32 = data->code - 4;
 
             for (int i = 0; i < stmt->defun->n_params; i++) {
-                int param_addr = _push_local(stack, stmt->defun->params[i]->var_decl, 1);
+                char param_addr = (char)_push_local(stack, stmt->defun->params[i]->var_decl, 1);
                 enum token_type param_type = stmt->defun->params[i]->var_decl->type->type;
                 int indirect = stmt->defun->params[i]->var_decl->indirect;
-                // parameters should not go past 127 bytes on the stack, so mod can be set to 1 byte displacement for -x(rbp)
 
                 if (param_type == C8 && !indirect) {
                     char rex_b[6] = {0x00, 0x00, 0x00, 0x00, 0x04, 0x04};
                     char reg[6] = {0x38, 0x30, 0x10, 0x08, 0x00, 0x08}; 
-                    char inst[7] = {0x40, 0x88, 0x85, 0x00, 0x00, 0x00, 0x00};
+                    char inst[4] = {0x40, 0x88, 0x45, 0x00};
 
                     inst[0] |= rex_b[i];
                     inst[2] |= reg[i];
 
-                    int inst_len = 6;
+                    int inst_len = 3;
                     int inst_beg = 1;
 
                     if (i < 2 || i > 3) {
-                        inst_len = 7;
+                        inst_len = 4;
                         inst_beg = 0;
                     }
 
-                    memcpy(inst + 3, &param_addr, 4);
+                    memcpy(inst + 3, &param_addr, 1);
                     write_instruction(data, inst + inst_beg, inst_len);
 
                 } else if (param_type == I32 && !indirect) {
                     char reg[6] = {0x38, 0x30, 0x10, 0x08, 0x00, 0x08};
-                    char inst[7] = {0x44, 0x89, 0x85, 0x00, 0x00, 0x00, 0x00};
+                    char inst[4] = {0x44, 0x89, 0x45, 0x00};
+
+                    inst[2] |= reg[i];
 
                     int inst_beg = 1;
-                    int inst_len = 6;
+                    int inst_len = 3;
 
                     if (i > 3) {
                         inst_beg = 0;
-                        inst_len = 7;
+                        inst_len = 4;
                     }
 
-                    inst[2] |= reg[i];
-                    memcpy(inst + 3, &param_addr, 4);
+                    memcpy(inst + 3, &param_addr, 1);
                     write_instruction(data, inst + inst_beg, inst_len);
 
                 } else if (param_type == I64 || indirect > 0
                         || param_type == STRING) {
                     char rex_b[6] = {0x00, 0x00, 0x00, 0x00, 0x04, 0x04}; 
                     char reg[6] = {0x38, 0x30, 0x10, 0x08, 0x00, 0x08};
-                    char inst[7] = {0x48, 0x89, 0x85, 0x00, 0x00, 0x00, 0x00};
+                    char inst[4] = {0x48, 0x89, 0x45, 0x00};
 
                     inst[0] |= rex_b[i];
                     inst[2] |= reg[i];
 
-                    memcpy(inst + 3, &param_addr, 4);
-                    write_instruction(data, inst, 7);
+                    memcpy(inst + 3, &param_addr, 1);
+                    write_instruction(data, inst, 4);
 
                 } else if (param_type == F32 && !indirect) {
                     char reg[6] = {0x00, 0x08, 0x10, 0x18, 0x20, 0x28};
-                    char inst[8] = {0xf3, 0x0f, 0x11, 0x85, 0x00, 0x00, 0x00, 0x00};
+                    char inst[5] = {0xf3, 0x0f, 0x11, 0x45, 0x00};
 
                     inst[3] |= reg[i];
-                    memcpy(inst + 4, &param_addr, 4);
-                    write_instruction(data, inst, 8);
+                    memcpy(inst + 4, &param_addr, 1);
+                    write_instruction(data, inst, 5);
                 } else if (param_type == F64 && !indirect) {
                     char reg[6] = {0x00, 0x08, 0x10, 0x18, 0x20, 0x28};
-                    char inst[8] = {0xf2, 0x0f, 0x11, 0x85, 0x00, 0x00, 0x00, 0x00};
+                    char inst[5] = {0xf2, 0x0f, 0x11, 0x45, 0x00};
 
                     inst[3] |= reg[i];
-                    memcpy(inst + 4, &param_addr, 4);
-                    write_instruction(data, inst, 8);
+                    memcpy(inst + 4, &param_addr, 1);
+                    write_instruction(data, inst, 5);
                 }
             }
 
@@ -198,7 +196,9 @@ void compile0_stmt(struct stmt* stmt, struct exec_stack* stack, struct object_da
             break;
 
         case VAR_DECL_STMT:
-            // alignment requirement 
+
+            // if left_side is array_Literal add to nlist64
+
             break;
 
         case PROCEDURE_DEF:
@@ -232,7 +232,7 @@ void compile0(char* filename, struct program* program, struct stmt** global_symt
     struct dysymtab_command dysymtab = {0xb, 80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 
-    struct exec_stack stack = {malloc(sizeof(struct local) * 16), 0, 16, 0, 0, 0, {RDI, RSI, RDX, RCX, R8, R9, R10}, {RDI, RSI, RDX, RCX, R8, R9, R10}};
+    struct exec_stack stack = {malloc(sizeof(struct local) * 16), 0, 16, 0, 0, 0};
     struct object_data data = {malloc(1024), malloc(sizeof(struct data_section) * 6), malloc(sizeof(struct relocation_info) * 32),
         malloc(sizeof(struct nlist_64) * 32), malloc(512), 0, 1024, 0, 6, 0, 32, 0, 32, 1, 512};
     memset(data.code, 0, 1024);
@@ -253,8 +253,8 @@ void compile0(char* filename, struct program* program, struct stmt** global_symt
     }
 
   
-    FILE* o_file = fopen("test.o", "w+");
-    fwrite(data.code, 1, data.code_pos, o_file);
+    //FILE* o_file = fopen("test.o", "w+");
+    //fwrite(data.code, 1, data.code_pos, o_file);
 }
 
 
