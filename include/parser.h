@@ -6,6 +6,8 @@
 // DEFINITIONS
 struct stmt;
 enum expr_type { BINARY, UNARY, LITERAL, CALL, VARIABLE, ARRAY_LITERAL };
+enum volatile_registers { RDI, RSI, RDX, RCX, RAX, R8, R9, R10, R11,
+    XMM0, XMM1, XMM2, XMM3, XMM4, XMM5, XMM6, XMM7 };  // 9 - 16
 
 struct expr {
     enum expr_type type;
@@ -24,6 +26,9 @@ struct expr {
     int indirect;
     int error;
     int line;
+
+    // information for compiler
+    enum volatile_registers reg_occupied;
 };
 
 struct binary {

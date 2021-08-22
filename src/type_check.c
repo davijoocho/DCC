@@ -1102,8 +1102,8 @@ struct stmt** semantic_analysis(struct program* program) {
 
     for (int i = 0; i < program->n_stmts; i++) {
         if (program->stmts[i]->type != STRUCT_DEF) {  // i.e FUNCTION_DEF, PROCEDURE_DEF
-            if (program->stmts[i]->type == PROCEDURE_DEF) {
-                if (program->stmts[i]->defproc->id->type == MAIN) {
+            if (program->stmts[i]->type == FUNCTION_DEF) {
+                if (program->stmts[i]->defun->id->type == MAIN) {
                     main = 1;
                 }
             }

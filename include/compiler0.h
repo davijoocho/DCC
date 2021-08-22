@@ -14,6 +14,7 @@ struct relocation_info {
     r_type:4;
 };
 
+// 16
 struct nlist_64
 {
     uint32_t n_strx;
@@ -23,6 +24,7 @@ struct nlist_64
     uint64_t n_value;
 };
 
+// 32
 struct mach_header_64
 {
     uint32_t magic;
@@ -35,13 +37,14 @@ struct mach_header_64
     uint32_t reserved;     
 };
 
+// 72
 struct segment_command_64 {  
     uint32_t cmd;   
-    uint32_t cmdsize;  // 72 + (80 * n_sects)
+    uint32_t cmdsize;
     char segname[16]; 
     uint64_t vmaddr;  
     uint64_t vmsize;  // same as filesize 
-    uint64_t fileoff;  // offset to machine code
+    uint64_t fileoff;
     uint64_t filesize; // start of machine code to end of data/ literal section
     int maxprot; 
     int initprot; 
@@ -49,6 +52,7 @@ struct segment_command_64 {
     uint32_t flags; 
 };
 
+// 80
 struct section_64 {
     char sectname[16];
     char segname[16]; 
@@ -113,12 +117,18 @@ struct dysymtab_command {
 };
 
 
-enum data_type { LITERAL_4, LITERAL_8, CSTRING, CONST_4, CONST_8, DATA_CONST };
+enum data_type { LITERAL_4, LITERAL_8, CSTRING, LCONST, DATA_CONST };
 
 struct local {
     char* id;
     int scope;
     int stack_addr;
+};
+
+struct _register {
+    int xmm;
+    enum volatile_registers reg;
+    struct _register* nxt;
 };
 
 struct exec_stack {
@@ -130,30 +140,41 @@ struct exec_stack {
     int total_space;
     int call_status;
 
+    struct _register* occupied; // singly-linked
+    struct _register* not_occupied;  // singly-linked
+    struct _register* popped;       // stack
+
     enum stmt_type subrout_type;
 };
 
 struct data_section {
     char* data;
     enum data_type type;
-    int capacity;
+    int32_t pos;
+    int32_t capacity;
+    char* sectname;
+    uint32_t flags;
+    uint32_t align;
 };
 
 struct object_data {
     char* code;
     struct data_section* sections;   
     struct relocation_info* reloc_entries;
+    struct relocation_info* data_reloc_entries;
     struct nlist_64* sym_entries;
     char* str_entries;
 
     uint64_t code_pos;
     uint64_t code_capacity;
 
-    int data_pos;
-    int data_capacity;
+    int section_pos;
 
     int reloc_pos;
     int reloc_capacity;
+
+    int data_reloc_pos;
+    int data_reloc_capacity;
 
     int sym_pos;
     int sym_capacity;
@@ -162,9 +183,12 @@ struct object_data {
     uint32_t str_capacity;
 };
 
+enum volatile_registers rand_unoc_register(struct exec_stack* stack, int xmm);
+void set_up_registers(struct exec_stack* stack);
 int _push_local(struct exec_stack* stack, struct var_decl* var, int scope);
 void add_nlist64(struct object_data* data, char* sym, uint8_t type, uint8_t sect, uint64_t value);
 void write_instruction(struct object_data* data, void* code, int n_bytes);
+void compile0_expr(struct expr* expr, struct exec_stack* stack, struct object_data* data, struct stmt** global_symtab);
 void compile0_stmt(struct stmt* stmt, struct exec_stack* stack, struct object_data* data, struct stmt** global_symtab);
 void compile0(char* filename, struct program* program, struct stmt** global_symtab);
 

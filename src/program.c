@@ -35,8 +35,7 @@ int main(int argc, char* argv[])
         "MEMCPY", "PRINT" ,"REALLOC", "EOFF", "VOID"};
     for (int i = 0; i < tokens->n_tokens; i++) {
         printf("%s, %s\n", types[tokens->tokens[i]->type], tokens->tokens[i]->lexeme);
-    }
-    */
+    }*/
 
     // free unused tokens in syntax_analysis
     // free all new_lines

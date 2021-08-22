@@ -140,13 +140,36 @@ void scan(struct scanner_info* scan_info, struct keyword_entry* keyword_hashtab,
             }
             break;
         case '+': add_token(PLUS, 80, scan_info, token_lst); break;
-        case '-':
-            if (scan_info->source[scan_info->end] == '>') {
+        case '-': {
+            char next = scan_info->source[scan_info->end];
+            if (next == '>') {
                 scan_info->end++;
                 add_token(ARROW, 100, scan_info, token_lst); 
+            } else if (IS_NUMERIC(next)) {
+                scan_info->end++;
+              char c = scan_info->source[scan_info->end - 1];
+
+              if (IS_NUMERIC(c)) {
+                  char nxt = scan_info->source[scan_info->end];
+                  int n_deci = 0;
+                  while (IS_NUMERIC(nxt) || nxt == '.') {
+                      nxt = scan_info->source[++scan_info->end];
+                  }
+
+                  if (nxt == 'L') {
+                      add_token(LONG, 0, scan_info, token_lst);
+                  } else if (nxt == 'F') {
+                      add_token(FLOAT, 0, scan_info, token_lst);
+                  } else if (nxt == 'D') {
+                      add_token(DOUBLE, 0, scan_info, token_lst);
+                  } else {
+                      add_token(INTEGER, 0, scan_info, token_lst);
+                  }
+              }
             } else {
                 add_token(MINUS, 80, scan_info, token_lst);
             }
+        }
             break;
         case '*': add_token(STAR, 90, scan_info, token_lst); break;
         case '%': add_token(MODULO, 90, scan_info, token_lst); break;
