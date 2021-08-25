@@ -560,7 +560,6 @@ void compile0_stmt(struct stmt* stmt, struct exec_stack* stack, struct object_da
                 // if printf special support - vector arg
                 // rdi, rsi, rdx, rcx, r8, r9 convention
         }
-
             break;
 
         case RETURN_STMT:
