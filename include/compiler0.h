@@ -5,6 +5,7 @@
 #include "parser.h" 
 #include "type_check.h"
 
+// 8
 struct relocation_info {
     int32_t r_address; 
     uint32_t r_symbolnum:24, 
@@ -145,6 +146,10 @@ struct exec_stack {
     struct _register* popped;       // stack
 
     enum stmt_type subrout_type;
+
+    char** jmps;
+    int n_jmps;
+    int jmp_capacity;
 };
 
 struct data_section {
@@ -160,9 +165,14 @@ struct data_section {
 struct object_data {
     char* code;
     struct data_section* sections;   
+
     struct relocation_info* reloc_entries;
     struct relocation_info* data_reloc_entries;
-    struct nlist_64* sym_entries;
+
+    struct nlist_64* loc_sym_entries;
+    struct nlist_64* ext_sym_entries;
+    struct nlist_64* undef_sym_entries;
+
     char* str_entries;
 
     uint64_t code_pos;
@@ -176,20 +186,28 @@ struct object_data {
     int data_reloc_pos;
     int data_reloc_capacity;
 
-    int sym_pos;
-    int sym_capacity;
+    int loc_sym_pos;
+    int loc_sym_capacity;
+
+    int ext_sym_pos;
+    int ext_sym_capacity;
+
+    int undef_sym_pos;
+    int undef_sym_capacity;
 
     uint32_t str_pos;
     uint32_t str_capacity;
 };
 
+void sort_symbols(struct object_data* data, struct nlist_64* syms, int n_sym, struct relocation_info* relocs, int n_reloc, int beg_idx);
+void add_reloc_entry(struct object_data* data, int32_t address, int idx, int pc_rel, int length, int external, int type);
 enum volatile_registers rand_unoc_register(struct exec_stack* stack, int xmm);
 void set_up_registers(struct exec_stack* stack);
 int _push_local(struct exec_stack* stack, struct var_decl* var, int scope);
 void add_nlist64(struct object_data* data, char* sym, uint8_t type, uint8_t sect, uint64_t value);
 void write_instruction(struct object_data* data, void* code, int n_bytes);
-void compile0_expr(struct expr* expr, struct exec_stack* stack, struct object_data* data, struct stmt** global_symtab);
-void compile0_stmt(struct stmt* stmt, struct exec_stack* stack, struct object_data* data, struct stmt** global_symtab);
+void compile0_expr(struct expr* expr, struct exec_stack* stack, struct object_data* data, struct stmt** global_symtab, struct program* program );
+void compile0_stmt(struct stmt* stmt, struct exec_stack* stack, struct object_data* data, struct stmt** global_symtab, struct program* program);
 void compile0(char* filename, struct program* program, struct stmt** global_symtab);
 
 

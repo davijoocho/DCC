@@ -123,6 +123,10 @@ struct defproc {
     struct stmt** params;
     int n_params;
     struct stmt* def;
+
+    int* reloc_idx;
+    int n_reloc;
+    int reloc_capacity;
 };
 
 struct defun {
@@ -133,6 +137,10 @@ struct defun {
     char* ret_type_repr;
     int n_params;
     int indirect;
+
+    int* reloc_idx;
+    int n_reloc;
+    int reloc_capacity;
 };
 
 struct assign {

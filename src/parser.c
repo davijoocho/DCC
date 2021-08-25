@@ -227,6 +227,10 @@ struct stmt* parse_stmt(struct tokens* tokens, int scope) {
 
             fn->def = parse_stmt(tokens, 4);
 
+            fn->reloc_idx = malloc(32);
+            fn->n_reloc = 0;
+            fn->reloc_capacity = 8;
+
             stmt->defun = fn;
             stmt->type = FUNCTION_DEF;
             }
@@ -251,6 +255,10 @@ struct stmt* parse_stmt(struct tokens* tokens, int scope) {
 
             tokens->idx++; // expect ')'
             proc->def = parse_stmt(tokens, 4);
+
+            proc->reloc_idx = malloc(32);
+            proc->n_reloc = 0;
+            proc->reloc_capacity = 8;
 
             stmt->defproc = proc;
             stmt->type = PROCEDURE_DEF;

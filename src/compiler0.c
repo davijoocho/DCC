@@ -96,15 +96,15 @@ void write_instruction(struct object_data* data, void* code, int n_bytes) {
     data->code_pos += n_bytes;
 }
 
-void add_nlist64(struct object_data* data, char* sym, uint8_t type, uint8_t sect, uint64_t value) {
-    if (data->sym_pos == data->sym_capacity) {
-        data->sym_entries = realloc(data->sym_entries, sizeof(struct nlist_64) * data->sym_capacity * 2);
-        data->sym_capacity *= 2;
+void add_external_sym(struct object_data* data, char* sym, uint64_t value) {
+    if (data->ext_sym_pos == data->ext_sym_capacity) {
+        data->ext_sym_entries = realloc(data->ext_sym_entries, 16 * data->ext_sym_capacity * 2);
+        data->ext_sym_capacity *= 2;
     }
 
-    struct nlist_64* nlist = &data->sym_entries[data->sym_pos++];
-    nlist->n_type = type;
-    nlist->n_sect = sect;
+    struct nlist_64* nlist = &data->ext_sym_entries[data->ext_sym_pos++];
+    nlist->n_type = 0x0f;
+    nlist->n_sect = 1;
     nlist->n_desc = 0;
     nlist->n_value = value;  // address relative to __TEXT, __text
 
@@ -124,6 +124,7 @@ void add_nlist64(struct object_data* data, char* sym, uint8_t type, uint8_t sect
     nlist->n_strx = data->str_pos;
     data->str_pos += len;
 }
+
 
 enum volatile_registers rand_unoc_register(struct exec_stack* stack, int xmm) {
     struct _register* prev = stack->not_occupied;
@@ -172,7 +173,7 @@ void add_reloc_entry(struct object_data* data, int32_t address, int idx, int pc_
     reloc->r_type = type;
 }
 
-void compile0_expr(struct expr* expr, struct exec_stack* stack, struct object_data* data, struct stmt** global_symtab) {
+void compile0_expr(struct expr* expr, struct exec_stack* stack, struct object_data* data, struct stmt** global_symtab, struct program* program) {
     switch (expr->type) {
 
         case LITERAL: {
@@ -180,7 +181,54 @@ void compile0_expr(struct expr* expr, struct exec_stack* stack, struct object_da
             switch (type) {
 
                 case STRING_LITERAL: {
-                    // HERE.
+                    enum volatile_registers dest = rand_unoc_register(stack, 0);
+                    struct data_section* __cstring = NULL;
+                    int section_idx = 0;
+
+                    for (int i = 0; i < data->section_pos; i++) {
+                        struct data_section* section = &data->sections[i];
+                        section_idx++;
+                        if (section->type == CSTRING) {
+                            __cstring = section;
+                            break;
+                        }
+                    }
+
+                    if (__cstring == NULL) {
+                        __cstring = &data->sections[data->section_pos++];
+                        __cstring->sectname = "__cstring";
+                        __cstring->align = 0;
+                        __cstring->flags = 0x02;
+                        __cstring->data = malloc(512);
+                        memset(__cstring->data, 0, 512);
+                        __cstring->type = CSTRING;
+                        __cstring->pos = 0;
+                        __cstring->capacity = 512;
+                    }
+
+
+                    if (__cstring->pos + strlen(expr->literal->value->string) + 1 > __cstring->capacity) {
+                        __cstring->data = realloc(__cstring->data, __cstring->capacity * 2);
+                        memset(__cstring->data + __cstring->capacity, 0, __cstring->capacity);
+                        __cstring->capacity *= 2;
+                    }
+
+                    strcpy(__cstring->data + __cstring->pos, expr->literal->value->string);
+
+                    char reg[9] = {0x38, 0x30, 0x10, 0x08, 0x00, 0x08, 0x0a, 0x12, 0x00};
+                    char inst[7] = {0x48, 0x8d, 0x05, 0x00, 0x00, 0x00, 0x00};
+
+                    inst[2] |= reg[dest];
+                    if (dest > RAX) {
+                        inst[0] |= 4;
+                    }
+
+                    memcpy(inst + 3, &__cstring->pos, 4);
+                    __cstring->pos += strlen(expr->literal->value->string) + 1;
+
+                    write_instruction(data, inst, 7);
+                    add_reloc_entry(data, (int32_t) data->code_pos - 4, section_idx + 2, 1, 2, 0, 1);
+                    expr->reg_occupied = dest;
                 }
                     break;
                 case FLOAT:
@@ -208,6 +256,16 @@ void compile0_expr(struct expr* expr, struct exec_stack* stack, struct object_da
 
                     if (__literal == NULL) {
                         __literal = &data->sections[data->section_pos++];
+
+                        if (type == FLOAT) {
+                            __literal->sectname = "__literal4";
+                            __literal->align = 2;
+                            __literal->flags = 0x3;
+                        } else {
+                            __literal->sectname = "__literal8";
+                            __literal->align = 3;
+                            __literal->flags = 0x4;
+                        }
                         __literal->data = malloc(512);
                         memset(__literal->data, 0, 512);
                         __literal->type = ltype;
@@ -222,14 +280,8 @@ void compile0_expr(struct expr* expr, struct exec_stack* stack, struct object_da
                     }
 
                     if (type == FLOAT) {
-                        __literal->sectname = "__literal4";
-                        __literal->align = 2;
-                        __literal->flags = 0x3;
                         memcpy(__literal->data + __literal->pos, &expr->literal->value->f32, 4);
                     } else {
-                        __literal->sectname = "__literal8";
-                        __literal->align = 3;
-                        __literal->flags = 0x4;
                         memcpy(__literal->data + __literal->pos, &expr->literal->value->f64, 8);
                     }
 
@@ -314,7 +366,7 @@ void compile0_expr(struct expr* expr, struct exec_stack* stack, struct object_da
     }
 }
 
-void compile0_stmt(struct stmt* stmt, struct exec_stack* stack, struct object_data* data, struct stmt** global_symtab) {
+void compile0_stmt(struct stmt* stmt, struct exec_stack* stack, struct object_data* data, struct stmt** global_symtab, struct program* program) {
     switch (stmt->type) {
         case FUNCTION_DEF: {
             while (data->code_pos % 16 != 0) {
@@ -397,22 +449,34 @@ void compile0_stmt(struct stmt* stmt, struct exec_stack* stack, struct object_da
                 }
             }
 
-            compile0_stmt(stmt->defun->def, stack, data, global_symtab);
+            compile0_stmt(stmt->defun->def, stack, data, global_symtab, program);
 
+            for (int i = 0; i < stack->n_jmps; i++) {
+                uint32_t jmp = (uint32_t)(data->code + data->code_pos - (stack->jmps[i] + 4));
+                memcpy(stack->jmps[i], &jmp, 4);
+            }
+
+            
             char _exit[] = {0x48, 0x81, 0xc4, 0x00, 0x00, 0x00, 0x00, 0x5d, 0xc3}; 
             write_instruction(data, _exit, 9);
             char* add_imm32 = data->code - 6;
+
+            struct defun* fn = find_global_sym(global_symtab, stmt->defun->id->string, program->n_stmts * 2)->defun;
+
+            for (int i = 0; i < fn->n_reloc; i++) {
+                struct relocation_info* reloc = &data->reloc_entries[fn->reloc_idx[i]];
+                reloc->r_symbolnum = data->ext_sym_pos;
+            }
 
             if (stack->call_status) {
                 while (stack->total_space % 16 != 0) {
                     stack->total_space++;
                 }
             }
-
             memcpy(sub_imm32, &stack->total_space, 4);
             memcpy(add_imm32, &stack->total_space, 4);
 
-            add_nlist64(data, stmt->defun->id->string, 0x0f, 1, addr);
+            add_external_sym(data, stmt->defun->id->string, addr);
             }
             break;
 
@@ -425,7 +489,7 @@ void compile0_stmt(struct stmt* stmt, struct exec_stack* stack, struct object_da
                 // add to nlist_64
                 // relocation entries.
             } else {
-                compile0_expr(stmt->var_decl->value, stack, data, global_symtab);
+                compile0_expr(stmt->var_decl->value, stack, data, global_symtab, program);
                 enum token_type type = stmt->var_decl->value->eval_to;
                 enum volatile_registers reg_occupied = stmt->var_decl->value->reg_occupied;
 
@@ -456,7 +520,7 @@ void compile0_stmt(struct stmt* stmt, struct exec_stack* stack, struct object_da
                             inst_len = 7;
                             inst[0] |= 4;
                         }
-                    } else if (type == I64 || type == EMPTY) {
+                    } else if (type == I64 || type == EMPTY || type == STRING) {
                         inst_beg = 0;
                         inst_len = 7;
                         inst[0] |= 8;
@@ -488,8 +552,17 @@ void compile0_stmt(struct stmt* stmt, struct exec_stack* stack, struct object_da
 
         case PROCEDURE_DEF:
             break;
-        case PROCEDURAL_CALL:
+
+        case PROCEDURAL_CALL: {
+                // if not found in global_symbol then undef 
+                // else ext
+                // but if in nlist_64 then no need to increment n_reloc
+                // if printf special support - vector arg
+                // rdi, rsi, rdx, rcx, r8, r9 convention
+        }
+
             break;
+
         case RETURN_STMT:
             // stack->subrout_type 
             // for proc just jump to last instruction (pop rbp, ret)
@@ -505,7 +578,7 @@ void compile0_stmt(struct stmt* stmt, struct exec_stack* stack, struct object_da
             stack->scope++;
 
             for (int i = 0; i < stmt->block->n_stmts; i++) {
-                compile0_stmt(stmt->block->stmts[i], stack, data, global_symtab);
+                compile0_stmt(stmt->block->stmts[i], stack, data, global_symtab, program);
             }
 
             if (stack->locals[stack->n_locals - 1].stack_addr > stack->total_space) {
@@ -520,6 +593,33 @@ void compile0_stmt(struct stmt* stmt, struct exec_stack* stack, struct object_da
     }
 }
 
+
+void sort_symbols(struct object_data* data, struct nlist_64* syms, int n_sym, struct relocation_info* relocs, int n_reloc, int beg_idx) {
+    for (int i = 0; i < n_sym; i++) {
+        int min_idx = i;
+        struct nlist_64* min = &syms[i];
+
+        for (int j = i + 1; j < n_sym; j++) {
+            struct nlist_64* cmp = &syms[j];
+            if (strcmp(data->str_entries + cmp->n_strx, data->str_entries + min->n_strx) < 0) {
+                min = cmp;
+                min_idx = j;
+            }
+        }
+
+        struct nlist_64 replace = syms[i];
+        syms[i] = *min;
+        syms[min_idx] = replace;
+
+        for (int i = 0; i < n_reloc; i++) {
+            struct relocation_info* reloc = &relocs[i];
+            if (reloc->r_extern && reloc->r_symbolnum == min_idx) {
+                reloc->r_symbolnum = beg_idx + i;
+            }
+        }
+    }
+}
+
 void compile0(char* filename, struct program* program, struct stmt** global_symtab) {
     struct mach_header_64 mach_header = {0xfeedfacf, 16777223, 3, 1, 4, 0, 0x2000, 0};
     struct segment_command_64 segment_64 = {0x19, 72, {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, 0, 0, 0, 0, 0x07, 0x07, 0, 0};
@@ -527,9 +627,10 @@ void compile0(char* filename, struct program* program, struct stmt** global_symt
     struct symtab_command symtab = {0x2, 24, 0, 0, 0, 0};
     struct dysymtab_command dysymtab = {0xb, 80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
-    struct exec_stack stack = {malloc(sizeof(struct local) * 16), 0, 16, 0, 0, 0, NULL, NULL, NULL, 0};
+    struct exec_stack stack = {malloc(sizeof(struct local) * 16), 0, 16, 0, 0, 0, NULL, NULL, NULL, 0, malloc(64), 0, 8};
     struct object_data data = {malloc(1024), malloc(sizeof(struct data_section) * 5), malloc(sizeof(struct relocation_info) * 32),
-        malloc(sizeof(struct relocation_info) * 32), malloc(sizeof(struct nlist_64) * 32), malloc(512), 0, 1024, 0, 0, 32, 0, 32, 0, 32, 1, 512};
+        malloc(sizeof(struct relocation_info) * 32), malloc(sizeof(struct nlist_64) * 32), malloc(sizeof(struct nlist_64) * 32), malloc(sizeof(struct nlist_64) * 32),
+            malloc(512), 0, 1024, 0, 0, 32, 0, 32, 0, 32, 0, 32, 0, 32, 1, 512};
     memset(data.code, 0, 1024);
     memset(data.str_entries, 0, 512);
     set_up_registers(&stack);
@@ -540,10 +641,11 @@ void compile0(char* filename, struct program* program, struct stmt** global_symt
                     (program->stmts[i]->type == FUNCTION_DEF && 
                      (program->stmts[i]->defun->id->type == MAIN || program->stmts[i]->defun->id->type == IDENTIFIER))) {
                 stack.subrout_type = program->stmts[i]->type;
-                compile0_stmt(program->stmts[i], &stack, &data, global_symtab);
+                compile0_stmt(program->stmts[i], &stack, &data, global_symtab, program);
                 stack.n_locals = 0;
                 stack.total_space = 0;
                 stack.call_status = 0;
+                stack.n_jmps = 0;
             }
         }
     }
@@ -553,19 +655,12 @@ void compile0(char* filename, struct program* program, struct stmt** global_symt
     mach_header.sizeofcmds = 128 + segment_64.cmdsize;   
     segment_64.fileoff = 32 + mach_header.sizeofcmds;
     symtab.strsize = data.str_pos;
-    symtab.nsyms = data.sym_pos;
+    symtab.nsyms = data.loc_sym_pos + data.ext_sym_pos + data.undef_sym_pos;
 
     // dynamic symbol table
-    for (int i = 0; i < data.sym_pos; i++) {
-        struct nlist_64* sym = &data.sym_entries[i];
-        if (sym->n_type == 0x0f) {
-            dysymtab.nextdefsym++;
-        } else if (sym->n_type == 0x01) {
-            dysymtab.nundefsym++;
-        } else if (sym->n_type == 0x0e) {
-            dysymtab.nlocalsym++;
-        }
-    }
+    dysymtab.nextdefsym = data.ext_sym_pos;
+    dysymtab.nundefsym = data.undef_sym_pos;
+    dysymtab.nlocalsym = data.loc_sym_pos;
 
     dysymtab.iextdefsym = dysymtab.ilocalsym + dysymtab.nlocalsym;
     dysymtab.iundefsym = dysymtab.iextdefsym + dysymtab.nextdefsym;
@@ -574,8 +669,6 @@ void compile0(char* filename, struct program* program, struct stmt** global_symt
     memset(sections, 0, sizeof(struct section_64) * segment_64.nsects);
 
     // __TEXT, __text
-    // nreloc (n reloc->type != 0)
-    // sectname, segname, addr, size, offset, align, reloff (x), nreloc (x), flags, reserved1, reserved2
     struct section_64* text = &sections[0];
     strcpy(text->sectname, "__text");
     strcpy(text->segname, "__TEXT");
@@ -631,7 +724,7 @@ void compile0(char* filename, struct program* program, struct stmt** global_symt
     text->reloff = text->offset + data.code_pos;
     
     symtab.symoff = text->reloff + (data.reloc_pos + data.data_reloc_pos) * sizeof(struct relocation_info);
-    symtab.stroff = symtab.symoff + data.sym_pos * sizeof(struct nlist_64);
+    symtab.stroff = symtab.symoff + (data.loc_sym_pos + data.ext_sym_pos + data.undef_sym_pos) * 16;
 
     for (int i = 0; i < data.reloc_pos; i++) {
         struct relocation_info* reloc = &data.reloc_entries[i];
@@ -656,8 +749,8 @@ void compile0(char* filename, struct program* program, struct stmt** global_symt
     memcpy
     */
 
-    int total_entries = (data.reloc_pos * sizeof(struct relocation_info)) + (data.data_reloc_pos * sizeof(struct relocation_info)) 
-        + (data.sym_pos * sizeof(struct nlist_64)) + data.str_pos;
+    int total_entries = data.reloc_pos * 8 + data.data_reloc_pos * 8 
+        + (data.loc_sym_pos + data.ext_sym_pos + data.undef_sym_pos) * 16 + data.str_pos;
 
     if (data.code_pos + total_entries > data.code_capacity) {
         data.code = realloc(data.code, data.code_capacity * 2);
@@ -665,24 +758,32 @@ void compile0(char* filename, struct program* program, struct stmt** global_symt
         data.code_capacity *= 2;
     }
 
-    // sort nlist and update indexes relocation_entries
+    sort_symbols(&data, data.ext_sym_entries, data.ext_sym_pos, data.reloc_entries, data.reloc_pos, data.loc_sym_pos);
+    sort_symbols(&data, data.undef_sym_entries, data.undef_sym_pos, data.reloc_entries, data.reloc_pos, data.loc_sym_pos + data.ext_sym_pos);
 
-    memcpy(data.code + data.code_pos, data.reloc_entries, data.reloc_pos * sizeof(struct relocation_info));
-    data.code_pos += data.reloc_pos * sizeof(struct relocation_info);
 
-    memcpy(data.code + data.code_pos, data.data_reloc_entries, data.data_reloc_pos * sizeof(struct relocation_info));
-    data.code_pos += data.data_reloc_pos * sizeof(struct relocation_info);
+    memcpy(data.code + data.code_pos, data.reloc_entries, data.reloc_pos * 8);
+    data.code_pos += data.reloc_pos * 8;
 
-    memcpy(data.code + data.code_pos, data.sym_entries, data.sym_pos * sizeof(struct nlist_64));
-    data.code_pos += data.sym_pos * sizeof(struct nlist_64);
+    memcpy(data.code + data.code_pos, data.data_reloc_entries, data.data_reloc_pos * 8);
+    data.code_pos += data.data_reloc_pos * 8;
+
+    memcpy(data.code + data.code_pos, data.loc_sym_entries, data.loc_sym_pos * 16);
+    data.code_pos += data.loc_sym_pos * 16;
+
+    memcpy(data.code + data.code_pos, data.ext_sym_entries, data.ext_sym_pos * 16);
+    data.code_pos += data.ext_sym_pos * 16;
+
+    memcpy(data.code + data.code_pos, data.undef_sym_entries, data.undef_sym_pos * 16);
+    data.code_pos += data.undef_sym_pos * 16;
 
     memcpy(data.code + data.code_pos, data.str_entries, data.str_pos);
     data.code_pos += data.str_pos;
 
+
     char* alias = malloc(strlen(filename) + 1);
     strcpy(alias, filename);
     alias[strlen(filename) - 1] = 'o';
-
     FILE* output = fopen(alias, "w+");
     fwrite(&mach_header, 1, 32, output);
     fwrite(&segment_64, 1, 72, output);
